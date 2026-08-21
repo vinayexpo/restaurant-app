@@ -1,0 +1,24 @@
+# Dependencies and build outputs
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+vendor/
+**/vendor/
+
+# Environment-specific secrets and configuration
+.env
+.env.*
+!.env.example
+
+# Editor and local agent state
+.idea/
+.claude/
+.codex/
+.kiro/
+.playwright-mcp/
+
+# OS and log files
+.DS_Store
+Thumbs.db
+*.log
