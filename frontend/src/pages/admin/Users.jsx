@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Search, Trash2, Users as UsersIcon } from 'lucide-react'
+import { Plus, Search, Trash2, Users as UsersIcon } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Badge } from '../../components/Badge'
+import { Button } from '../../components/Button'
+import { Input } from '../../components/Input'
+import { Modal } from '../../components/Modal'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
 
@@ -12,6 +15,10 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
+  const [showCreateOwner, setShowCreateOwner] = useState(false)
+  const [createOwnerForm, setCreateOwnerForm] = useState({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
+  const [createOwnerErrors, setCreateOwnerErrors] = useState({})
+  const [creatingOwner, setCreatingOwner] = useState(false)
 
   const load = (page = 1) => {
     setLoading(true)
@@ -46,9 +53,37 @@ export default function AdminUsers() {
     load(meta.page)
   }
 
+  const handleCreateOwner = async (e) => {
+    e.preventDefault()
+    setCreateOwnerErrors({})
+    setCreatingOwner(true)
+
+    try {
+      await adminService.createRestaurantOwner(createOwnerForm)
+      setShowCreateOwner(false)
+      setCreateOwnerForm({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
+      toast.success('Restaurant owner account created.')
+      load(1)
+    } catch (error) {
+      setCreateOwnerErrors(error.response?.data?.errors ?? {})
+    } finally {
+      setCreatingOwner(false)
+    }
+  }
+
+  const ownerErr = (field) => {
+    const value = createOwnerErrors[field]
+    return Array.isArray(value) ? value[0] : value
+  }
+
   return (
     <div>
-      <h1 className="mb-4 text-lg font-bold text-neutral-900">Users</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-lg font-bold text-neutral-900">Users</h1>
+        <Button size="sm" onClick={() => setShowCreateOwner(true)}>
+          <Plus size={14} /> Create Owner
+        </Button>
+      </div>
 
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1">
@@ -130,6 +165,35 @@ export default function AdminUsers() {
           </button>
         </div>
       )}
+
+      <Modal open={showCreateOwner} onClose={() => setShowCreateOwner(false)} title="Create Restaurant Owner">
+        <form onSubmit={handleCreateOwner} className="space-y-3">
+          <Input label="Full Name" value={createOwnerForm.name} onChange={(e) => setCreateOwnerForm((prev) => ({ ...prev, name: e.target.value }))} error={ownerErr('name')} required />
+          <Input label="Email" type="email" value={createOwnerForm.email} onChange={(e) => setCreateOwnerForm((prev) => ({ ...prev, email: e.target.value }))} error={ownerErr('email')} required />
+          <Input label="Phone" value={createOwnerForm.phone} onChange={(e) => setCreateOwnerForm((prev) => ({ ...prev, phone: e.target.value }))} error={ownerErr('phone')} />
+          <Input
+            label="Password"
+            type="password"
+            value={createOwnerForm.password}
+            onChange={(e) => setCreateOwnerForm((prev) => ({ ...prev, password: e.target.value }))}
+            error={ownerErr('password')}
+            hint="At least 8 characters"
+            required
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={createOwnerForm.password_confirmation}
+            onChange={(e) => setCreateOwnerForm((prev) => ({ ...prev, password_confirmation: e.target.value }))}
+            error={ownerErr('password_confirmation')}
+            required
+          />
+
+          <Button type="submit" loading={creatingOwner} className="w-full">
+            Create Owner
+          </Button>
+        </form>
+      </Modal>
     </div>
   )
 }

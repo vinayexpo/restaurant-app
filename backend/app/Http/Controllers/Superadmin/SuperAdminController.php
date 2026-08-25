@@ -18,6 +18,41 @@ class SuperAdminController extends Controller
         return $this->paginated(User::where('role', 'admin')->latest()->paginate(15));
     }
 
+    public function bootstrapStatus(): JsonResponse
+    {
+        return $this->success([
+            'has_superadmin' => User::where('role', 'superadmin')->exists(),
+        ]);
+    }
+
+    public function bootstrap(Request $request): JsonResponse
+    {
+        if (User::where('role', 'superadmin')->exists()) {
+            return $this->error('A superadmin account already exists.', [], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $superadmin = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => 'superadmin',
+            'email_verified_at' => now(),
+        ]);
+
+        $token = $superadmin->createToken('auth-token', ['*'], now()->addDays(30))->plainTextToken;
+
+        return $this->success([
+            'user' => $superadmin,
+            'token' => $token,
+        ], 'Superadmin account created.', 201);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([

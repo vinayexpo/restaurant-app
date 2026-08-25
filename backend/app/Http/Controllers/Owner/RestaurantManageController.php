@@ -21,6 +21,10 @@ class RestaurantManageController extends Controller
     {
         $user = $request->user();
 
+        if (! $user->isRestaurantOwner()) {
+            return $this->error('Only admin-created restaurant owner accounts can register a restaurant.', [], 403);
+        }
+
         if ($user->restaurant) {
             return $this->error('You already have a restaurant registered.', [], 422);
         }
@@ -54,8 +58,6 @@ class RestaurantManageController extends Controller
             }
 
             $restaurant = Restaurant::create([...$validated, 'user_id' => $user->id, 'is_active' => false]);
-
-            $user->update(['role' => 'restaurant_owner']);
 
             return $restaurant;
         });

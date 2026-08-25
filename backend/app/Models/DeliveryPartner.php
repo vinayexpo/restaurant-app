@@ -34,6 +34,16 @@ class DeliveryPartner extends Model
         return $this->hasMany(DeliveryEarning::class);
     }
 
+    public function payoutAccounts(): HasMany
+    {
+        return $this->hasMany(DeliveryPayoutAccount::class);
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(DeliveryPayout::class);
+    }
+
     public function ratings(): HasMany
     {
         return $this->hasMany(DeliveryPartnerRating::class);

@@ -8,7 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('menu_items', function (Blueprint $table) {
+        $supportsFullText = Schema::getConnection()->getDriverName() !== 'sqlite';
+
+        Schema::create('menu_items', function (Blueprint $table) use ($supportsFullText) {
             $table->id();
             $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
             $table->foreignId('category_id')->constrained()->cascadeOnDelete();
@@ -27,7 +29,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes()->comment('Soft delete — removed items still show in past orders');
 
-            $table->fullText('name');
+            if ($supportsFullText) {
+                $table->fullText('name');
+            }
             $table->index(['restaurant_id', 'category_id']);
         });
     }

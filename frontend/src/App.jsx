@@ -156,7 +156,7 @@ function App() {
           <Route
             path="/owner/register-restaurant"
             element={
-              <PrivateRoute roles={['customer', 'restaurant_owner']}>
+              <PrivateRoute roles={['restaurant_owner']}>
                 <RegisterRestaurant />
               </PrivateRoute>
             }

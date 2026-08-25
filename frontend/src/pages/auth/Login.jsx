@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
@@ -19,15 +19,32 @@ const PANEL_HOME = {
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
+  const [superadminForm, setSuperadminForm] = useState({ name: '', email: '', password: '', password_confirmation: '' })
   const [errors, setErrors] = useState({})
+  const [superadminErrors, setSuperadminErrors] = useState({})
   const [loading, setLoading] = useState(false)
+  const [checkingBootstrap, setCheckingBootstrap] = useState(true)
+  const [showBootstrapForm, setShowBootstrapForm] = useState(false)
+  const [creatingSuperadmin, setCreatingSuperadmin] = useState(false)
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
 
+  useEffect(() => {
+    authService
+      .superadminBootstrapStatus()
+      .then(({ data }) => setShowBootstrapForm(!data.data.has_superadmin))
+      .finally(() => setCheckingBootstrap(false))
+  }, [])
+
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  const handleSuperadminChange = (field) => (e) => {
+    setSuperadminForm((prev) => ({ ...prev, [field]: e.target.value }))
+    setSuperadminErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
   const handleSubmit = async (e) => {
@@ -53,6 +70,44 @@ export default function Login() {
     }
   }
 
+  const handleCreateSuperadmin = async (e) => {
+    e.preventDefault()
+    setSuperadminErrors({})
+    setCreatingSuperadmin(true)
+
+    try {
+      const { data } = await authService.createFirstSuperadmin(superadminForm)
+      dispatch(setCredentials(data.data))
+      setShowBootstrapForm(false)
+      navigate('/superadmin/dashboard', { replace: true })
+      toast.success('Superadmin account created!')
+    } catch (error) {
+      const apiErrors = error.response?.data?.errors
+
+      if (apiErrors) {
+        setSuperadminErrors(apiErrors)
+      } else {
+        toast.error(error.response?.data?.message ?? 'Could not create superadmin account.')
+      }
+
+      if (error.response?.status === 403) {
+        setShowBootstrapForm(false)
+      }
+    } finally {
+      setCreatingSuperadmin(false)
+    }
+  }
+
+  const err = (field) => {
+    const value = errors[field]
+    return Array.isArray(value) ? value[0] : value
+  }
+
+  const superadminErr = (field) => {
+    const value = superadminErrors[field]
+    return Array.isArray(value) ? value[0] : value
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-12">
       <motion.div {...pageTransitionVariants} className="w-full max-w-sm">
@@ -71,7 +126,7 @@ export default function Login() {
             autoComplete="email"
             value={form.email}
             onChange={handleChange('email')}
-            error={errors.email?.[0] ?? errors.email}
+            error={err('email')}
             required
           />
           <Input
@@ -80,7 +135,7 @@ export default function Login() {
             autoComplete="current-password"
             value={form.password}
             onChange={handleChange('password')}
-            error={errors.password?.[0] ?? errors.password}
+            error={err('password')}
             required
           />
 
@@ -101,6 +156,51 @@ export default function Login() {
             Create an account
           </Link>
         </p>
+
+        {!checkingBootstrap && showBootstrapForm && (
+          <div className="mt-6 rounded-xl border border-brand-100 bg-white p-6 shadow-card">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-neutral-900">Create Superadmin</h2>
+              <p className="mt-1 text-sm text-neutral-500">No superadmin exists yet. This form is only available until the first superadmin account is created.</p>
+            </div>
+
+            <form onSubmit={handleCreateSuperadmin} className="space-y-4">
+              <Input label="Full Name" value={superadminForm.name} onChange={handleSuperadminChange('name')} error={superadminErr('name')} required />
+              <Input
+                label="Email"
+                type="email"
+                autoComplete="email"
+                value={superadminForm.email}
+                onChange={handleSuperadminChange('email')}
+                error={superadminErr('email')}
+                required
+              />
+              <Input
+                label="Password"
+                type="password"
+                autoComplete="new-password"
+                value={superadminForm.password}
+                onChange={handleSuperadminChange('password')}
+                error={superadminErr('password')}
+                hint="At least 8 characters"
+                required
+              />
+              <Input
+                label="Confirm Password"
+                type="password"
+                autoComplete="new-password"
+                value={superadminForm.password_confirmation}
+                onChange={handleSuperadminChange('password_confirmation')}
+                error={superadminErr('password_confirmation')}
+                required
+              />
+
+              <Button type="submit" loading={creatingSuperadmin} className="w-full">
+                Create Superadmin
+              </Button>
+            </form>
+          </div>
+        )}
       </motion.div>
     </div>
   )

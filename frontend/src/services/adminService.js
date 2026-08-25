@@ -3,6 +3,7 @@ import api from '../lib/axios'
 export const adminService = {
   dashboard: () => api.get('/admin/dashboard'),
 
+  createRestaurantOwner: (payload) => api.post('/admin/users', payload),
   users: (params) => api.get('/admin/users', { params }),
   user: (id) => api.get(`/admin/users/${id}`),
   activateUser: (id) => api.patch(`/admin/users/${id}/activate`),
@@ -22,6 +23,9 @@ export const adminService = {
   deliveryPartners: (params) => api.get('/admin/delivery-partners', { params }),
   verifyDeliveryPartner: (id) => api.patch(`/admin/delivery-partners/${id}/verify`),
   suspendDeliveryPartner: (id) => api.patch(`/admin/delivery-partners/${id}/suspend`),
+  deliveryPayouts: (params) => api.get('/admin/delivery-payouts', { params }),
+  approveDeliveryPayout: (id) => api.patch(`/admin/delivery-payouts/${id}/approve`),
+  rejectDeliveryPayout: (id, reason) => api.patch(`/admin/delivery-payouts/${id}/reject`, { reason }),
 
   coupons: (params) => api.get('/admin/coupons', { params }),
   createCoupon: (payload) => api.post('/admin/coupons', payload),

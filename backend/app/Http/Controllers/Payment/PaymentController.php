@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Payment;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\DeliveryPayoutService;
 use App\Services\OrderService;
 use App\Services\PaymentService;
 use App\Traits\ApiResponse;
@@ -18,6 +19,7 @@ class PaymentController extends Controller
     public function __construct(
         private PaymentService $paymentService,
         private OrderService $orderService,
+        private DeliveryPayoutService $deliveryPayoutService,
     ) {}
 
     public function initiate(Request $request): JsonResponse
@@ -80,6 +82,8 @@ class PaymentController extends Controller
             'payment.captured' => $this->paymentService->handleCaptured($request->json('payload')),
             'payment.failed' => $this->paymentService->handleFailed($request->json('payload')),
             'refund.created' => $this->paymentService->handleRefund($request->json('payload')),
+            'payout.processed', 'payout.failed', 'payout.reversed', 'payout.queued', 'payout.pending' =>
+                $this->deliveryPayoutService->settleFromWebhook($request->json('payload.payout.entity', [])),
             default => null,
         };
 

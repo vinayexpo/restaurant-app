@@ -18,6 +18,7 @@ export default function ActiveDelivery() {
   const navigate = useNavigate()
   const [order, setOrder] = useState(null)
   const [advancing, setAdvancing] = useState(false)
+  const [confirmingCash, setConfirmingCash] = useState(false)
   const [myPosition, setMyPosition] = useState(null)
 
   const load = () => deliveryService.order(id).then(({ data }) => setOrder(data.data))
@@ -47,7 +48,11 @@ export default function ActiveDelivery() {
       await deliveryService.updateOrderStatus(id, step.next)
       if (step.next === 'delivered') {
         toast.success('Delivery completed!')
-        navigate('/delivery/dashboard')
+        if (order.payment_method !== 'cod' || order.payment_status === 'paid') {
+          navigate('/delivery/dashboard')
+          return
+        }
+        load()
         return
       }
       load()
@@ -55,6 +60,21 @@ export default function ActiveDelivery() {
       toast.error(error.response?.data?.message ?? 'Could not update status.')
     } finally {
       setAdvancing(false)
+    }
+  }
+
+  const confirmCashReceived = async () => {
+    if (!window.confirm('Confirm that you collected the full cash payment from the customer?')) return
+
+    setConfirmingCash(true)
+    try {
+      await deliveryService.confirmCashReceived(id)
+      toast.success('Cash payment confirmed.')
+      navigate('/delivery/dashboard')
+    } catch (error) {
+      toast.error(error.response?.data?.message ?? 'Could not confirm cash payment.')
+    } finally {
+      setConfirmingCash(false)
     }
   }
 
@@ -133,6 +153,11 @@ export default function ActiveDelivery() {
       {currentStep?.next && (
         <Button className="mt-5 w-full" size="lg" loading={advancing} onClick={advance}>
           {currentStep.nextLabel}
+        </Button>
+      )}
+      {order.status === 'delivered' && order.payment_method === 'cod' && order.payment_status === 'pending' && (
+        <Button className="mt-5 w-full" size="lg" loading={confirmingCash} onClick={confirmCashReceived}>
+          Confirm Cash Received
         </Button>
       )}
     </div>

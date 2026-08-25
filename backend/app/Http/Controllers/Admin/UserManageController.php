@@ -12,6 +12,25 @@ class UserManageController extends Controller
 {
     use ApiResponse;
 
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:15',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = User::create([
+            ...$validated,
+            'role' => 'restaurant_owner',
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        return $this->success($user, 'Restaurant owner account created.', 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = User::query();

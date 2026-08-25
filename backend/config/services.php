@@ -41,6 +41,10 @@ return [
         'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
     ],
 
+    'razorpayx' => [
+        'account_number' => env('RAZORPAYX_ACCOUNT_NUMBER'),
+    ],
+
     'vapid' => [
         'public_key' => env('VAPID_PUBLIC_KEY'),
         'private_key' => env('VAPID_PRIVATE_KEY'),

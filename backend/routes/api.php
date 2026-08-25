@@ -5,13 +5,13 @@ use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\CouponManageController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DeliveryPayoutController as AdminDeliveryPayoutController;
 use App\Http\Controllers\Admin\LoyaltyManageController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RestaurantApprovalController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserManageController;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Customer\AddressController;
 use App\Http\Controllers\Customer\CartController;
@@ -27,6 +27,7 @@ use App\Http\Controllers\Customer\ReviewController;
 use App\Http\Controllers\Customer\RestaurantController;
 use App\Http\Controllers\Delivery\DeliveryController;
 use App\Http\Controllers\Delivery\DeliveryOrderController;
+use App\Http\Controllers\Delivery\DeliveryPayoutController;
 use App\Http\Controllers\Owner\CategoryController as OwnerCategoryController;
 use App\Http\Controllers\Owner\MenuItemController as OwnerMenuItemController;
 use App\Http\Controllers\Owner\OrderManageController;
@@ -49,15 +50,15 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('throttle:auth')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/superadmin/bootstrap', [SuperAdminController::class, 'bootstrap']);
 });
+
+Route::get('/superadmin/bootstrap-status', [SuperAdminController::class, 'bootstrapStatus']);
 
 Route::middleware('throttle:forgot-password')->group(function () {
     Route::post('/auth/forgot-password', [PasswordResetController::class, 'send']);
     Route::post('/auth/reset-password', [PasswordResetController::class, 'reset']);
 });
-
-Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-    ->middleware(['signed'])->name('verification.verify');
 
 Route::get('/settings/public', [PublicSettingsController::class, 'index']);
 
@@ -77,8 +78,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'changePassword']);
-    Route::post('/auth/email/resend', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:3,1');
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
@@ -103,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/payment/initiate', [PaymentController::class, 'initiate'])
             ->middleware('throttle:payment');
         Route::post('/payment/verify', [PaymentController::class, 'verify'])
-            ->middleware(['throttle:payment', 'verified']);
+            ->middleware('throttle:payment');
 
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -124,10 +123,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ─── RESTAURANT OWNER ───────────────────────────────────────────────────
-    Route::prefix('owner')->group(function () {
+    Route::middleware('role:restaurant_owner')->prefix('owner')->group(function () {
         Route::post('/restaurant', [RestaurantManageController::class, 'store']);
 
-        Route::middleware(['role:restaurant_owner', 'check.restaurant.owner'])->group(function () {
+        Route::middleware('check.restaurant.owner')->group(function () {
             Route::get('/restaurant', [RestaurantManageController::class, 'show']);
             Route::put('/restaurant', [RestaurantManageController::class, 'update']);
             Route::get('/restaurant/hours', [RestaurantManageController::class, 'hours']);
@@ -163,17 +162,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/available', [DeliveryOrderController::class, 'available']);
         Route::post('/orders/{id}/accept', [DeliveryOrderController::class, 'accept']);
         Route::patch('/orders/{id}/status', [DeliveryOrderController::class, 'updateStatus']);
+        Route::patch('/orders/{id}/payment', [DeliveryOrderController::class, 'confirmCashReceived']);
         Route::get('/orders/{id}', [DeliveryOrderController::class, 'show']);
 
         Route::get('/history', [DeliveryOrderController::class, 'history']);
         Route::get('/earnings', [DeliveryOrderController::class, 'earnings']);
         Route::get('/earnings/summary', [DeliveryOrderController::class, 'earningsSummary']);
+        Route::get('/payout-account', [DeliveryPayoutController::class, 'account']);
+        Route::post('/payout-account', [DeliveryPayoutController::class, 'storeAccount']);
+        Route::get('/payouts', [DeliveryPayoutController::class, 'index']);
+        Route::post('/payouts', [DeliveryPayoutController::class, 'store']);
     });
 
     // ─── ADMIN (admin + superadmin both access these) ──────────────────────
     Route::middleware('role:admin,superadmin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'stats']);
 
+        Route::post('/users', [UserManageController::class, 'store']);
         Route::get('/users', [UserManageController::class, 'index']);
         Route::get('/users/{id}', [UserManageController::class, 'show']);
         Route::patch('/users/{id}/activate', [UserManageController::class, 'activate']);
@@ -193,6 +198,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/delivery-partners', [AdminDeliveryController::class, 'index']);
         Route::patch('/delivery-partners/{id}/verify', [AdminDeliveryController::class, 'verify']);
         Route::patch('/delivery-partners/{id}/suspend', [AdminDeliveryController::class, 'suspend']);
+        Route::get('/delivery-payouts', [AdminDeliveryPayoutController::class, 'index']);
+        Route::patch('/delivery-payouts/{id}/approve', [AdminDeliveryPayoutController::class, 'approve']);
+        Route::patch('/delivery-payouts/{id}/reject', [AdminDeliveryPayoutController::class, 'reject']);
 
         Route::get('/coupons', [CouponManageController::class, 'index']);
         Route::post('/coupons', [CouponManageController::class, 'store']);

@@ -11,7 +11,7 @@ class DeliveryEarning extends Model
 
     protected $fillable = [
         'delivery_partner_id', 'order_id', 'delivery_fee', 'partner_share_pct',
-        'amount_earned', 'status', 'paid_at',
+        'delivery_payout_id', 'amount_earned', 'status', 'paid_at',
     ];
 
     protected function casts(): array
@@ -32,5 +32,10 @@ class DeliveryEarning extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function payout(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryPayout::class, 'delivery_payout_id');
     }
 }

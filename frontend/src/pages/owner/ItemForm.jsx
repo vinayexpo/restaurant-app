@@ -22,6 +22,7 @@ export default function ItemForm() {
     discounted_price: '',
     is_veg: true,
     preparation_time: '15',
+    tags: [],
   })
   const [image, setImage] = useState(null)
   const [existingImage, setExistingImage] = useState(null)
@@ -46,6 +47,7 @@ export default function ItemForm() {
             discounted_price: item.discounted_price ?? '',
             is_veg: item.is_veg,
             preparation_time: item.preparation_time,
+            tags: item.tags ?? [],
           })
           setVariants(item.variants ?? [])
           setExistingImage(item.image ?? null)
@@ -64,6 +66,7 @@ export default function ItemForm() {
     const formData = new FormData()
     Object.entries(form).forEach(([key, value]) => {
       if (key === 'is_veg') formData.append(key, value ? '1' : '0')
+      else if (key === 'tags') value.forEach((tag) => formData.append('tags[]', tag))
       else if (value !== '') formData.append(key, value)
     })
     if (image) formData.append('image', image)
@@ -151,6 +154,15 @@ export default function ItemForm() {
 
         <Input label="Preparation Time (min)" type="number" value={form.preparation_time} onChange={change('preparation_time')} />
 
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-neutral-700">Menu labels</legend>
+          <div className="flex flex-wrap gap-2">
+            <TagOption label="Best Seller" value="bestseller" form={form} setForm={setForm} />
+            <TagOption label="New" value="new" form={form} setForm={setForm} />
+            <TagOption label="Spicy" value="spicy" form={form} setForm={setForm} />
+          </div>
+        </fieldset>
+
         {isEdit && (
           <div className="border-t border-neutral-100 pt-4">
             <p className="mb-2 text-sm font-bold text-neutral-900">Variants</p>
@@ -188,5 +200,24 @@ export default function ItemForm() {
         </Button>
       </form>
     </div>
+  )
+}
+
+function TagOption({ label, value, form, setForm }) {
+  const checked = form.tags.includes(value)
+
+  return (
+    <label className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${checked ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => setForm((current) => ({
+          ...current,
+          tags: checked ? current.tags.filter((tag) => tag !== value) : [...current.tags, value],
+        }))}
+        className="sr-only"
+      />
+      {label}
+    </label>
   )
 }

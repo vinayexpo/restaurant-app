@@ -76,6 +76,25 @@ class DeliveryOrderController extends Controller
         return $this->success($order->fresh(), 'Order status updated.');
     }
 
+    public function confirmCashReceived(Request $request, int $id): JsonResponse
+    {
+        $order = Order::where('delivery_partner_id', $request->user()->id)->findOrFail($id);
+
+        if ($order->payment_method !== 'cod') {
+            return $this->error('Only cash-on-delivery payments can be confirmed here.', [], 422);
+        }
+
+        if ($order->status !== 'delivered') {
+            return $this->error('Cash can only be confirmed after the order is delivered.', [], 422);
+        }
+
+        if ($order->payment_status !== 'paid') {
+            $order->update(['payment_status' => 'paid']);
+        }
+
+        return $this->success($order->fresh(), 'Cash payment confirmed.');
+    }
+
     public function show(Request $request, int $id): JsonResponse
     {
         $order = Order::where('delivery_partner_id', $request->user()->id)
@@ -107,6 +126,8 @@ class DeliveryOrderController extends Controller
 
         $totalEarned = DeliveryEarning::where('delivery_partner_id', $partner->id)->sum('amount_earned');
         $pendingPayout = DeliveryEarning::where('delivery_partner_id', $partner->id)->where('status', 'pending')->sum('amount_earned');
+        $withdrawable = DeliveryEarning::where('delivery_partner_id', $partner->id)
+            ->where('status', 'pending')->whereNull('delivery_payout_id')->sum('amount_earned');
 
         return response()->json([
             'success' => true,
@@ -119,6 +140,7 @@ class DeliveryOrderController extends Controller
                 'last_page' => $earnings->lastPage(),
                 'total_earned' => (float) $totalEarned,
                 'pending_payout' => (float) $pendingPayout,
+                'withdrawable_amount' => (float) $withdrawable,
             ],
         ]);
     }

@@ -8,7 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('restaurants', function (Blueprint $table) {
+        $supportsFullText = Schema::getConnection()->getDriverName() !== 'sqlite';
+
+        Schema::create('restaurants', function (Blueprint $table) use ($supportsFullText) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('name');
@@ -44,7 +46,9 @@ return new class extends Migration
 
             $table->index('city');
             $table->index('slug');
-            $table->fullText('name');
+            if ($supportsFullText) {
+                $table->fullText('name');
+            }
         });
     }
 

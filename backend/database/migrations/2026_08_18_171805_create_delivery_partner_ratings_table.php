@@ -19,7 +19,9 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
         });
 
-        DB::statement('ALTER TABLE delivery_partner_ratings ADD CONSTRAINT chk_dpr_rating CHECK (rating BETWEEN 1 AND 5)');
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE delivery_partner_ratings ADD CONSTRAINT chk_dpr_rating CHECK (rating BETWEEN 1 AND 5)');
+        }
     }
 
     public function down(): void
