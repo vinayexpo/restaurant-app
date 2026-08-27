@@ -14,6 +14,8 @@ export default function DeliveryEarnings() {
   const [selectedEarnings, setSelectedEarnings] = useState([])
   const [showAccountForm, setShowAccountForm] = useState(false)
   const [payoutStatus, setPayoutStatus] = useState('')
+  const [payouts, setPayouts] = useState([])
+  const [payoutMeta, setPayoutMeta] = useState(null)
 
   const loadEarnings = (page = 1) => {
     deliveryService.earnings({ page }).then(({ data }) => {
@@ -23,13 +25,22 @@ export default function DeliveryEarnings() {
     })
   }
 
+  const loadPayouts = (page = 1) => {
+    deliveryService.payouts({ page }).then(({ data }) => {
+      setPayouts(data.data)
+      setPayoutMeta(data.meta)
+    })
+  }
+
   useEffect(() => {
-    Promise.all([deliveryService.earningsSummary(), deliveryService.earnings(), deliveryService.payoutAccount()])
-      .then(([summaryRes, earningsRes, accountRes]) => {
+    Promise.all([deliveryService.earningsSummary(), deliveryService.earnings(), deliveryService.payoutAccount(), deliveryService.payouts()])
+      .then(([summaryRes, earningsRes, accountRes, payoutsRes]) => {
         setSummary(summaryRes.data.data)
         setEarnings(earningsRes.data.data)
         setMeta(earningsRes.data.meta)
         setPayoutAccount(accountRes.data.data)
+        setPayouts(payoutsRes.data.data)
+        setPayoutMeta(payoutsRes.data.meta)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -51,6 +62,7 @@ export default function DeliveryEarnings() {
       setPayoutStatus('Payout requested. It will be transferred after approval.')
       setSelectedEarnings([])
       loadEarnings()
+      loadPayouts()
     } catch (error) {
       setPayoutStatus(error.response?.data?.message ?? 'Payout request failed.')
     }
@@ -135,6 +147,28 @@ export default function DeliveryEarnings() {
       )}
 
       <Pagination meta={meta} onPageChange={loadEarnings} />
+
+      <section className="mt-8">
+        <h2 className="mb-2 text-sm font-bold text-neutral-900">Payout history</h2>
+        {payouts.length === 0 ? (
+          <p className="rounded-lg border border-neutral-100 bg-white px-4 py-3 text-sm text-neutral-500">No payout requests yet.</p>
+        ) : (
+          <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-100 bg-white">
+            {payouts.map((payout) => (
+              <div key={payout.id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">₹{Number(payout.amount).toFixed(0)}</p>
+                  <p className="text-xs text-neutral-400">{new Date(payout.created_at).toLocaleDateString()}</p>
+                </div>
+                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${payout.status === 'paid' ? 'bg-accent-500/15 text-accent-600' : payout.status === 'failed' || payout.status === 'rejected' ? 'bg-danger-500/10 text-danger-600' : 'bg-warning-500/15 text-warning-600'}`}>
+                  {payout.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <Pagination meta={payoutMeta} onPageChange={loadPayouts} />
+      </section>
     </div>
   )
 }

@@ -1,9 +1,10 @@
 import { Outlet, Link, NavLink } from 'react-router-dom'
-import { Bike, ClipboardList, Wallet, User, Bell } from 'lucide-react'
+import { Bike, ClipboardList, Wallet, User, Bell, History } from 'lucide-react'
 
 const TABS = [
   { to: '/delivery/dashboard', label: 'Home', icon: Bike },
   { to: '/delivery/orders', label: 'Orders', icon: ClipboardList },
+  { to: '/delivery/history', label: 'History', icon: History },
   { to: '/delivery/earnings', label: 'Earnings', icon: Wallet },
   { to: '/delivery/profile', label: 'Profile', icon: User },
 ]
@@ -24,7 +25,7 @@ export function DeliveryLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-neutral-200 bg-white">
         {TABS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

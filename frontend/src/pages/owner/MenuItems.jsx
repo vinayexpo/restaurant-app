@@ -7,14 +7,19 @@ import { VegBadge, NonVegBadge } from '../../components/VegBadge'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { SkeletonListRow } from '../../components/Skeleton'
+import { Pagination } from '../../components/Pagination'
 
 export default function MenuItems() {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [meta, setMeta] = useState(null)
 
-  const load = () =>
-    ownerService.menuItems({ per_page: 100 }).then(({ data }) => setItems(data.data))
+  const load = (page = 1) =>
+    ownerService.menuItems({ page }).then(({ data }) => {
+      setItems(data.data)
+      setMeta(data.meta)
+    })
 
   useEffect(() => {
     load().finally(() => setLoading(false))
@@ -101,6 +106,7 @@ export default function MenuItems() {
           </div>
         ))
       )}
+      <Pagination meta={meta} onPageChange={load} />
     </div>
   )
 }

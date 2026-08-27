@@ -46,6 +46,7 @@ const DeliveryDashboard = lazy(() => import('./pages/delivery/Dashboard'))
 const DeliveryOrders = lazy(() => import('./pages/delivery/Orders'))
 const ActiveDelivery = lazy(() => import('./pages/delivery/ActiveDelivery'))
 const DeliveryEarnings = lazy(() => import('./pages/delivery/Earnings'))
+const DeliveryHistory = lazy(() => import('./pages/delivery/History'))
 const DeliveryProfile = lazy(() => import('./pages/delivery/Profile'))
 
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
@@ -193,6 +194,7 @@ function App() {
             <Route path="dashboard" element={<DeliveryDashboard />} />
             <Route path="orders" element={<DeliveryOrders />} />
             <Route path="orders/:id" element={<ActiveDelivery />} />
+            <Route path="history" element={<DeliveryHistory />} />
             <Route path="earnings" element={<DeliveryEarnings />} />
             <Route path="profile" element={<DeliveryProfile />} />
           </Route>

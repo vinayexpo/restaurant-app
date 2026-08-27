@@ -12,11 +12,11 @@ class CommissionController extends Controller
 {
     use ApiResponse;
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $commissions = PlatformCommission::with('restaurant:id,name')->latest()->get();
+        $commissions = PlatformCommission::with('restaurant:id,name')->latest()->paginate(15);
 
-        return $this->success($commissions);
+        return $this->paginated($commissions);
     }
 
     public function store(Request $request): JsonResponse

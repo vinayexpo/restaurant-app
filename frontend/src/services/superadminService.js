@@ -6,7 +6,7 @@ export const superadminService = {
   updateAdmin: (id, payload) => api.put(`/superadmin/admins/${id}`, payload),
   deleteAdmin: (id) => api.delete(`/superadmin/admins/${id}`),
 
-  commissions: () => api.get('/superadmin/commissions'),
+  commissions: (params) => api.get('/superadmin/commissions', { params }),
   createCommission: (payload) => api.post('/superadmin/commissions', payload),
   updateCommission: (id, payload) => api.put(`/superadmin/commissions/${id}`, payload),
   deleteCommission: (id) => api.delete(`/superadmin/commissions/${id}`),

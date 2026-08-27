@@ -8,17 +8,22 @@ import { Select } from '../../components/Select'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { EmptyState } from '../../components/EmptyState'
+import { Pagination } from '../../components/Pagination'
 
 export default function SuperadminCommissions() {
   const [commissions, setCommissions] = useState([])
   const [restaurants, setRestaurants] = useState([])
   const [loading, setLoading] = useState(true)
+  const [meta, setMeta] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ restaurant_id: '', rate_pct: '', effective_from: '', notes: '' })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
-  const load = () => superadminService.commissions().then(({ data }) => setCommissions(data.data))
+  const load = (page = 1) => superadminService.commissions({ page }).then(({ data }) => {
+    setCommissions(data.data)
+    setMeta(data.meta)
+  })
 
   useEffect(() => {
     load().finally(() => setLoading(false))
@@ -94,6 +99,7 @@ export default function SuperadminCommissions() {
           </table>
         </div>
       )}
+      <Pagination meta={meta} onPageChange={load} />
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Commission Override">
         <form onSubmit={handleCreate} className="space-y-3">
