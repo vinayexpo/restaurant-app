@@ -11,11 +11,19 @@ vendor/
 .env.*
 !.env.example
 
+# Local databases
+*.sqlite
+*.sqlite-journal
+
 # Editor and local agent state
 .idea/
+.vscode/
+.cursor/
 .claude/
 .codex/
 .kiro/
+.kilo/
+.mcp.json
 .playwright-mcp/
 
 # OS and log files
