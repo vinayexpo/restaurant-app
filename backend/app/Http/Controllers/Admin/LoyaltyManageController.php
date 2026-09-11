@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\LoyaltyPoint;
 use App\Models\LoyaltyTier;
 use App\Models\LoyaltyTransaction;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Services\LoyaltyService;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +18,10 @@ class LoyaltyManageController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private NotificationService $notificationService) {}
+    public function __construct(
+        private NotificationService $notificationService,
+        private LoyaltyService $loyaltyService,
+    ) {}
 
     private const CONFIG_KEYS = [
         'loyalty_earn_rate' => 'integer',
@@ -63,6 +66,24 @@ class LoyaltyManageController extends Controller
         return $this->success(LoyaltyTier::orderBy('min_lifetime_points')->get());
     }
 
+    public function storeTier(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:50|unique:loyalty_tiers,name',
+            'min_lifetime_points' => 'required|integer|min:0',
+            'points_multiplier' => 'required|numeric|min:0.1',
+            'free_delivery' => 'sometimes|boolean',
+            'free_delivery_min' => 'nullable|numeric|min:0',
+            'badge_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'perks' => 'nullable|array',
+            'perks.*' => 'string|max:255',
+        ]);
+
+        $tier = LoyaltyTier::create($validated);
+
+        return $this->success($tier, 'Tier created successfully.', 201);
+    }
+
     public function updateTier(Request $request, int $id): JsonResponse
     {
         $tier = LoyaltyTier::findOrFail($id);
@@ -83,6 +104,23 @@ class LoyaltyManageController extends Controller
         return $this->success($tier->fresh(), 'Tier updated successfully.');
     }
 
+    public function destroyTier(int $id): JsonResponse
+    {
+        $tier = LoyaltyTier::findOrFail($id);
+
+        if (LoyaltyTier::count() === 1) {
+            return $this->error('At least one loyalty tier must remain.', [], 422);
+        }
+
+        if ($tier->loyaltyPoints()->exists()) {
+            return $this->error('Reassign customers from this tier before deleting it.', [], 422);
+        }
+
+        $tier->delete();
+
+        return $this->success(null, 'Tier deleted successfully.');
+    }
+
     public function bonus(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -94,10 +132,7 @@ class LoyaltyManageController extends Controller
         $user = User::findOrFail($validated['user_id']);
 
         $transaction = DB::transaction(function () use ($validated, $user) {
-            $loyaltyPoint = LoyaltyPoint::firstOrCreate(
-                ['user_id' => $user->id],
-                ['balance' => 0, 'lifetime_earned' => 0, 'tier_id' => 1]
-            );
+            $loyaltyPoint = $this->loyaltyService->pointsFor($user);
 
             $loyaltyPoint->increment('balance', $validated['points']);
             $loyaltyPoint->increment('lifetime_earned', $validated['points']);

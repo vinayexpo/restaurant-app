@@ -35,7 +35,9 @@ export const adminService = {
   loyaltyConfig: () => api.get('/admin/loyalty/config'),
   updateLoyaltyConfig: (payload) => api.put('/admin/loyalty/config', payload),
   loyaltyTiers: () => api.get('/admin/loyalty/tiers'),
+  createLoyaltyTier: (payload) => api.post('/admin/loyalty/tiers', payload),
   updateLoyaltyTier: (id, payload) => api.put(`/admin/loyalty/tiers/${id}`, payload),
+  deleteLoyaltyTier: (id) => api.delete(`/admin/loyalty/tiers/${id}`),
   grantLoyaltyBonus: (payload) => api.post('/admin/loyalty/bonus', payload),
 
   broadcastNotification: (payload) => api.post('/admin/notifications/broadcast', payload),

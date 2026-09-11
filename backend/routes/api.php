@@ -211,7 +211,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/loyalty/config', [LoyaltyManageController::class, 'config']);
         Route::put('/loyalty/config', [LoyaltyManageController::class, 'updateConfig']);
         Route::get('/loyalty/tiers', [LoyaltyManageController::class, 'tiers']);
+        Route::post('/loyalty/tiers', [LoyaltyManageController::class, 'storeTier']);
         Route::put('/loyalty/tiers/{id}', [LoyaltyManageController::class, 'updateTier']);
+        Route::delete('/loyalty/tiers/{id}', [LoyaltyManageController::class, 'destroyTier']);
         Route::post('/loyalty/bonus', [LoyaltyManageController::class, 'bonus']);
 
         Route::post('/notifications/broadcast', [AdminNotificationController::class, 'broadcast']);
