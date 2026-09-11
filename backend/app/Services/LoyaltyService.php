@@ -124,12 +124,25 @@ class LoyaltyService
 
     public function pointsFor(User $user): LoyaltyPoint
     {
+        $tierId = LoyaltyTier::orderBy('min_lifetime_points')->value('id')
+            ?? LoyaltyTier::firstOrCreate(
+                ['name' => 'Bronze'],
+                [
+                    'min_lifetime_points' => 0,
+                    'points_multiplier' => 1.00,
+                    'free_delivery' => false,
+                    'free_delivery_min' => null,
+                    'badge_color' => '#CD7F32',
+                    'perks' => ['1x points on every order'],
+                ]
+            )->id;
+
         return LoyaltyPoint::with('tier')->firstOrCreate(
             ['user_id' => $user->id],
             [
                 'balance' => 0,
                 'lifetime_earned' => 0,
-                'tier_id' => LoyaltyTier::orderBy('min_lifetime_points')->value('id'),
+                'tier_id' => $tierId,
             ]
         );
     }
