@@ -145,8 +145,21 @@ class OrderService
             return $order;
         });
 
-        broadcast(new NewOrderReceived($order))->toOthers();
+        broadcast(new NewOrderReceived($order));
         SendOrderConfirmationEmail::dispatch($order);
+
+        // Notify the restaurant owner so the owner panel can react instantly,
+        // even on devices/panels that do not have the websocket channel open.
+        $owner = $restaurant->user;
+        if ($owner && $owner->id !== $user->id) {
+            $this->notificationService->send(
+                $owner,
+                'new_order',
+                "New Order — {$order->order_number}",
+                "New order of ₹".number_format((float) $order->total_amount, 2).' received.',
+                ['order_id' => $order->id, 'status' => $order->status]
+            );
+        }
 
         return $order;
     }
@@ -162,7 +175,7 @@ class OrderService
             'note' => $note,
         ]);
 
-        broadcast(new OrderStatusChanged($order))->toOthers();
+        broadcast(new OrderStatusChanged($order));
         SendOrderStatusEmail::dispatch($order);
 
         if ($newStatus === 'delivered') {

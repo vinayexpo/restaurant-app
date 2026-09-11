@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { User, MapPin, Heart, Bell, BellOff, Camera, Plus, Trash2, Gem, LogOut, Check } from 'lucide-react'
 import { authService } from '../../services/authService'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { pushService } from '../../services/pushService'
 import api from '../../lib/axios'
 import { setUser, logout } from '../../features/auth/authSlice'
 import { Input } from '../../components/Input'
@@ -428,12 +429,14 @@ function FavouritesTab() {
 }
 
 function NotificationsTab() {
+  const { permission, loading: pushLoading, enable, disable, isSupported, subscribed } = usePushNotifications()
+  const [pushError, setPushError] = useState('')
   const [notifications, setNotifications] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
 
   const load = (page = 1) =>
-    api.get('/notifications', { params: { page } }).then(({ data }) => {
+    pushService.list(page).then(({ data }) => {
       setNotifications(data.data)
       setMeta(data.meta)
     })
@@ -442,42 +445,76 @@ function NotificationsTab() {
     load().finally(() => setLoading(false))
   }, [])
 
+  const togglePush = async () => {
+    setPushError('')
+    try {
+      if (subscribed || permission === 'granted') {
+        await disable()
+      } else {
+        const ok = await enable()
+        if (!ok) setPushError('Browser permission is required to receive push notifications.')
+      }
+    } catch (error) {
+      setPushError(error.message ?? 'Could not update push notification settings.')
+    }
+  }
+
   const markRead = async (id) => {
-    await api.patch(`/notifications/${id}/read`)
+    await pushService.markRead(id)
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)))
   }
 
   const markAllRead = async () => {
-    await api.patch('/notifications/read-all')
+    await pushService.markAllRead()
     setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })))
   }
 
   if (loading) return null
 
-  if (notifications.length === 0) {
-    return <EmptyState icon={Bell} title="No notifications" description="You're all caught up." />
-  }
-
   return (
     <div>
-      <div className="mb-3 flex justify-end">
-        <button onClick={markAllRead} className="flex items-center gap-1 text-xs font-semibold text-brand-600">
-          <Check size={13} /> Mark all as read
-        </button>
+      <div className="mb-3 flex items-center justify-between rounded-lg border border-neutral-100 bg-white p-3.5">
+        <div className="flex items-center gap-2">
+          {subscribed || permission === 'granted' ? <Bell size={16} className="text-brand-500" /> : <BellOff size={16} className="text-neutral-400" />}
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">Push notifications</p>
+            <p className="text-xs text-neutral-500">
+              {!isSupported ? 'Not supported in this browser.' : subscribed || permission === 'granted' ? 'Enabled on this device.' : 'Get order updates even when the app is closed.'}
+            </p>
+          </div>
+        </div>
+        {isSupported && (
+          <Button size="sm" variant="secondary" loading={pushLoading} onClick={togglePush}>
+            {subscribed || permission === 'granted' ? 'Disable' : 'Enable'}
+          </Button>
+        )}
       </div>
-      <div className="space-y-2">
-        {notifications.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => !n.read_at && markRead(n.id)}
-            className={`w-full rounded-lg border p-3.5 text-left ${n.read_at ? 'border-neutral-100 bg-white' : 'border-brand-200 bg-brand-50/50'}`}
-          >
-            <p className="text-sm font-semibold text-neutral-900">{n.title}</p>
-            <p className="text-xs text-neutral-500">{n.body}</p>
-          </button>
-        ))}
-      </div>
-      <Pagination meta={meta} onPageChange={load} />
+      {pushError && <p className="mb-3 text-xs text-danger-600">{pushError}</p>}
+
+      {notifications.length === 0 ? (
+        <EmptyState icon={Bell} title="No notifications" description="You're all caught up." />
+      ) : (
+        <>
+          <div className="mb-3 flex justify-end">
+            <button onClick={markAllRead} className="flex items-center gap-1 text-xs font-semibold text-brand-600">
+              <Check size={13} /> Mark all as read
+            </button>
+          </div>
+          <div className="space-y-2">
+            {notifications.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => !n.read_at && markRead(n.id)}
+                className={`w-full rounded-lg border p-3.5 text-left ${n.read_at ? 'border-neutral-100 bg-white' : 'border-brand-200 bg-brand-50/50'}`}
+              >
+                <p className="text-sm font-semibold text-neutral-900">{n.title}</p>
+                <p className="text-xs text-neutral-500">{n.body}</p>
+              </button>
+            ))}
+          </div>
+          <Pagination meta={meta} onPageChange={load} />
+        </>
+      )}
     </div>
   )
 }

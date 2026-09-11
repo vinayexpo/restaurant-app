@@ -3,8 +3,8 @@ import { Outlet, Link, NavLink } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import toast from 'react-hot-toast'
 import { Home, Search, ClipboardList, User, ShoppingCart, Bell } from 'lucide-react'
-import api from '../lib/axios'
-import { getEcho } from '../lib/echo'
+import { subscribeToUserNotifications } from '../hooks/usePushNotifications'
+import { pushService } from '../services/pushService'
 import { setUnreadCount, incrementUnread } from '../features/customer/notificationsSlice'
 
 const TABS = [
@@ -23,17 +23,17 @@ export function CustomerLayout() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return
 
-    api.get('/notifications', { params: { page: 1 } }).then(({ data }) => {
-      dispatch(setUnreadCount(data.data.filter((n) => !n.read_at).length))
-    })
+    pushService
+      .unreadCount()
+      .then(({ data }) => dispatch(setUnreadCount(data.data.unread_count)))
+      .catch(() => {})
 
-    const echo = getEcho()
-    const channel = echo.private(`App.Models.User.${user.id}`)
-    channel.listen('.notification.created', (notification) => {
-      dispatch(incrementUnread())
-      toast(notification.title, { icon: '🔔' })
+    return subscribeToUserNotifications(user.id, {
+      onNotification: (notification) => {
+        dispatch(incrementUnread())
+        toast(notification.title, { icon: '🔔' })
+      },
     })
-    return () => echo.leave(`App.Models.User.${user.id}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id])
 

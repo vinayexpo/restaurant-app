@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import toast from 'react-hot-toast'
-import { Camera, Star, LogOut } from 'lucide-react'
+import { Camera, Star, LogOut, Bell, BellOff } from 'lucide-react'
 import { deliveryService } from '../../services/deliveryService'
 import { authService } from '../../services/authService'
+import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { logout } from '../../features/auth/authSlice'
 import { Input } from '../../components/Input'
 import { Select } from '../../components/Select'
@@ -15,6 +16,8 @@ export default function DeliveryProfile() {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
+  const { permission, loading: pushLoading, enable, disable, isSupported, subscribed } = usePushNotifications()
+  const [pushError, setPushError] = useState('')
 
   useEffect(() => {
     deliveryService.profile().then(({ data }) => {
@@ -61,6 +64,22 @@ export default function DeliveryProfile() {
     }
   }
 
+  const togglePush = async () => {
+    setPushError('')
+    try {
+      if (subscribed || permission === 'granted') {
+        await disable()
+        toast.success('Push notifications disabled.')
+      } else {
+        const ok = await enable()
+        if (ok) toast.success('Push notifications enabled.')
+        else setPushError('Browser permission is required to receive push notifications.')
+      }
+    } catch (error) {
+      setPushError(error.message ?? 'Could not update push notification settings.')
+    }
+  }
+
   return (
     <div className="p-4">
       <div className="mb-5 flex flex-col items-center">
@@ -96,6 +115,24 @@ export default function DeliveryProfile() {
           Save Changes
         </Button>
       </form>
+
+      <div className="mt-4 flex items-center justify-between rounded-xl border border-neutral-100 bg-white p-4">
+        <div className="flex items-center gap-2">
+          {subscribed || permission === 'granted' ? <Bell size={16} className="text-brand-500" /> : <BellOff size={16} className="text-neutral-400" />}
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">Push notifications</p>
+            <p className="text-xs text-neutral-500">
+              {!isSupported ? 'Not supported in this browser.' : subscribed || permission === 'granted' ? 'Enabled on this device.' : 'Get delivery alerts even when the app is closed.'}
+            </p>
+          </div>
+        </div>
+        {isSupported && (
+          <Button size="sm" variant="secondary" loading={pushLoading} onClick={togglePush}>
+            {subscribed || permission === 'granted' ? 'Disable' : 'Enable'}
+          </Button>
+        )}
+      </div>
+      {pushError && <p className="mt-2 text-xs text-danger-600">{pushError}</p>}
 
       <button
         onClick={() => dispatch(logout())}

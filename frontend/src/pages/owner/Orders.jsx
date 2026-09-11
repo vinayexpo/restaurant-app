@@ -54,7 +54,14 @@ export default function OwnerOrders() {
     if (!restaurant?.id) return
     const echo = getEcho()
     const channel = echo.private(`restaurant.${restaurant.id}.orders`)
-    channel.listen('.order.status.changed', () => load())
+    channel.listen('.order.status.changed', () => {
+      load()
+      toast('Order update received.', { icon: '🔔' })
+    })
+    channel.listen('.order.new', () => {
+      load()
+      toast.success('New order received!')
+    })
     return () => echo.leave(`restaurant.${restaurant.id}.orders`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant?.id, activeTab])

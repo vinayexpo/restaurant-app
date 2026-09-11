@@ -1,5 +1,11 @@
+import { useEffect } from 'react'
 import { Outlet, Link, NavLink } from 'react-router-dom'
+import { useSelector, useDispatch } from 'react-redux'
+import toast from 'react-hot-toast'
 import { Bike, ClipboardList, Wallet, User, Bell, History } from 'lucide-react'
+import { subscribeToUserNotifications } from '../hooks/usePushNotifications'
+import { pushService } from '../services/pushService'
+import { setUnreadCount, incrementUnread } from '../features/customer/notificationsSlice'
 
 const TABS = [
   { to: '/delivery/dashboard', label: 'Home', icon: Bike },
@@ -10,15 +16,40 @@ const TABS = [
 ]
 
 export function DeliveryLayout() {
+  const dispatch = useDispatch()
+  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const unreadCount = useSelector((state) => state.notifications.unreadCount)
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return
+
+    pushService
+      .unreadCount()
+      .then(({ data }) => dispatch(setUnreadCount(data.data.unread_count)))
+      .catch(() => {})
+
+    return subscribeToUserNotifications(user.id, {
+      onNotification: (notification) => {
+        dispatch(incrementUnread())
+        toast(notification.title, { icon: '🔔' })
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id])
+
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-neutral-200 bg-white px-4">
         <Link to="/delivery/dashboard" className="font-display text-lg font-extrabold text-brand-500">
           DeliverEase
         </Link>
-        <button className="flex size-9 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
+        <Link
+          to="/delivery/notifications"
+          className="relative flex size-9 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+        >
           <Bell size={18} />
-        </button>
+          {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-danger-500" />}
+        </Link>
       </header>
 
       <main className="flex-1 pb-20">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Review;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Http\Request;
 class ReviewManageController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private NotificationService $notificationService) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -37,6 +40,14 @@ class ReviewManageController extends Controller
             'owner_reply' => $validated['owner_reply'],
             'owner_replied_at' => now(),
         ]);
+
+        $this->notificationService->send(
+            $review->user,
+            'review_reply',
+            'The restaurant replied to your review',
+            $validated['owner_reply'],
+            ['order_id' => $review->order_id, 'restaurant_id' => $review->restaurant_id]
+        );
 
         return $this->success($review->fresh(), 'Reply posted successfully.');
     }

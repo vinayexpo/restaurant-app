@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPartner;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Http\Request;
 class AdminDeliveryController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private NotificationService $notificationService) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -27,6 +30,13 @@ class AdminDeliveryController extends Controller
     {
         $partner = DeliveryPartner::findOrFail($id);
         $partner->update(['is_verified' => true]);
+
+        $this->notificationService->send(
+            $partner->user,
+            'system',
+            'Delivery account verified!',
+            'Your delivery partner account is verified. Go online to start accepting orders.'
+        );
 
         return $this->success($partner->fresh(), 'Delivery partner verified.');
     }

@@ -21,6 +21,15 @@ class NotificationController extends Controller
         return $this->paginated($notifications);
     }
 
+    public function unreadCount(Request $request): JsonResponse
+    {
+        $count = Notification::where('user_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->count();
+
+        return $this->success(['unread_count' => $count]);
+    }
+
     public function markRead(Request $request, int $id): JsonResponse
     {
         $notification = Notification::where('user_id', $request->user()->id)->findOrFail($id);

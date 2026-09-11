@@ -22,7 +22,7 @@ class NotificationService
             'data' => $data,
         ]);
 
-        broadcast(new NotificationCreated($notification))->toOthers();
+        broadcast(new NotificationCreated($notification));
 
         try {
             $this->pushNotificationService->send($user, $title, $body, $data);

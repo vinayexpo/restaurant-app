@@ -8,6 +8,7 @@ use App\Models\LoyaltyTier;
 use App\Models\LoyaltyTransaction;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 class LoyaltyManageController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private NotificationService $notificationService) {}
 
     private const CONFIG_KEYS = [
         'loyalty_earn_rate' => 'integer',
@@ -107,6 +110,13 @@ class LoyaltyManageController extends Controller
                 'description' => $validated['reason'],
             ]);
         });
+
+        $this->notificationService->send(
+            $user,
+            'promo',
+            'Bonus loyalty points received!',
+            "You received {$validated['points']} bonus loyalty points: {$validated['reason']}"
+        );
 
         return $this->success($transaction, 'Bonus points granted.', 201);
     }

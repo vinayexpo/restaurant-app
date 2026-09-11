@@ -41,6 +41,7 @@ const RestaurantSettings = lazy(() => import('./pages/owner/RestaurantSettings')
 const OwnerReviews = lazy(() => import('./pages/owner/Reviews'))
 const OwnerCoupons = lazy(() => import('./pages/owner/Coupons'))
 const OwnerRevenue = lazy(() => import('./pages/owner/Revenue'))
+const OwnerNotifications = lazy(() => import('./pages/owner/Notifications'))
 
 const DeliveryDashboard = lazy(() => import('./pages/delivery/Dashboard'))
 const DeliveryOrders = lazy(() => import('./pages/delivery/Orders'))
@@ -48,6 +49,7 @@ const ActiveDelivery = lazy(() => import('./pages/delivery/ActiveDelivery'))
 const DeliveryEarnings = lazy(() => import('./pages/delivery/Earnings'))
 const DeliveryHistory = lazy(() => import('./pages/delivery/History'))
 const DeliveryProfile = lazy(() => import('./pages/delivery/Profile'))
+const DeliveryNotifications = lazy(() => import('./pages/delivery/Notifications'))
 
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
 const AdminUsers = lazy(() => import('./pages/admin/Users'))
@@ -180,6 +182,7 @@ function App() {
             <Route path="coupons" element={<OwnerCoupons />} />
             <Route path="revenue" element={<OwnerRevenue />} />
             <Route path="settings" element={<RestaurantSettings />} />
+            <Route path="notifications" element={<OwnerNotifications />} />
           </Route>
 
           {/* Delivery Partner */}
@@ -197,6 +200,7 @@ function App() {
             <Route path="history" element={<DeliveryHistory />} />
             <Route path="earnings" element={<DeliveryEarnings />} />
             <Route path="profile" element={<DeliveryProfile />} />
+            <Route path="notifications" element={<DeliveryNotifications />} />
           </Route>
 
           {/* Admin */}

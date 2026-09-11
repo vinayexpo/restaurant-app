@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Outlet, NavLink, Navigate } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
+import { Outlet, NavLink, Navigate, Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import toast from 'react-hot-toast'
 import {
   LayoutDashboard,
   ClipboardList,
@@ -18,6 +19,9 @@ import { logout } from '../features/auth/authSlice'
 import { setOwnerRestaurant } from '../features/owner/ownerSlice'
 import { authService } from '../services/authService'
 import { ownerService } from '../services/ownerService'
+import { subscribeToUserNotifications } from '../hooks/usePushNotifications'
+import { pushService } from '../services/pushService'
+import { setUnreadCount, incrementUnread } from '../features/customer/notificationsSlice'
 
 const NAV_ITEMS = [
   { to: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,6 +38,8 @@ export function OwnerLayout() {
   const [checked, setChecked] = useState(false)
   const [needsRegistration, setNeedsRegistration] = useState(false)
   const dispatch = useDispatch()
+  const { user } = useSelector((state) => state.auth)
+  const unreadCount = useSelector((state) => state.notifications.unreadCount)
 
   useEffect(() => {
     ownerService
@@ -45,6 +51,23 @@ export function OwnerLayout() {
       .catch(() => setNeedsRegistration(true))
       .finally(() => setChecked(true))
   }, [dispatch])
+
+  useEffect(() => {
+    if (!user?.id) return
+
+    pushService
+      .unreadCount()
+      .then(({ data }) => dispatch(setUnreadCount(data.data.unread_count)))
+      .catch(() => {})
+
+    return subscribeToUserNotifications(user.id, {
+      onNotification: (notification) => {
+        dispatch(incrementUnread())
+        toast(notification.title, { icon: '🔔' })
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   if (checked && needsRegistration) {
     return <Navigate to="/owner/register-restaurant" replace />
@@ -116,9 +139,13 @@ export function OwnerLayout() {
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <h1 className="text-base font-semibold text-neutral-900">Owner Dashboard</h1>
-          <button className="ml-auto flex size-9 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100">
+          <Link
+            to="/owner/notifications"
+            className="relative ml-auto flex size-9 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+          >
             <Bell size={18} />
-          </button>
+            {unreadCount > 0 && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-danger-500" />}
+          </Link>
         </header>
         <main className="flex-1 p-5">
           <Outlet />

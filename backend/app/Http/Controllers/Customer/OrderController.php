@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
+use App\Events\OrderStatusChanged;
+use App\Services\NotificationService;
 use App\Services\PaymentService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +17,10 @@ class OrderController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private PaymentService $paymentService) {}
+    public function __construct(
+        private PaymentService $paymentService,
+        private NotificationService $notificationService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -66,6 +71,20 @@ class OrderController extends Controller
                 'note' => $validated['reason'] ?? null,
             ]);
         });
+
+        $order->loadMissing('restaurant.user');
+        broadcast(new OrderStatusChanged($order->fresh()));
+
+        $owner = $order->restaurant?->user;
+        if ($owner) {
+            $this->notificationService->send(
+                $owner,
+                'order_cancelled',
+                "Order cancelled — {$order->order_number}",
+                'The customer cancelled this order.',
+                ['order_id' => $order->id, 'status' => 'cancelled']
+            );
+        }
 
         return $this->success($order->fresh(), 'Order cancelled successfully.');
     }

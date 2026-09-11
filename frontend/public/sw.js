@@ -1,8 +1,13 @@
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  const payload = event.data.json()
-  const { title, body, data } = payload
+  let payload = {}
+  try {
+    payload = event.data.json()
+  } catch {
+    payload = { title: 'RestaurantApp', body: event.data.text() }
+  }
+  const { title = 'RestaurantApp', body = '', data = {} } = payload
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -31,6 +36,7 @@ self.addEventListener('notificationclick', (event) => {
       if (self.clients.openWindow) {
         return self.clients.openWindow(url)
       }
+      return undefined
     })
   )
 })

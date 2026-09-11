@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPayout;
 use App\Services\DeliveryPayoutService;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,10 @@ class DeliveryPayoutController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private DeliveryPayoutService $payoutService) {}
+    public function __construct(
+        private DeliveryPayoutService $payoutService,
+        private NotificationService $notificationService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -42,6 +46,16 @@ class DeliveryPayoutController extends Controller
         $validated = $request->validate(['reason' => 'required|string|max:1000']);
         $payout = DeliveryPayout::findOrFail($id);
         $this->payoutService->reject($payout, $validated['reason']);
+
+        $partnerUser = $payout->fresh('deliveryPartner.user')->deliveryPartner?->user;
+        if ($partnerUser) {
+            $this->notificationService->send(
+                $partnerUser,
+                'system',
+                'Payout request rejected',
+                "Your payout of ₹".number_format((float) $payout->amount, 2)." was rejected: {$validated['reason']}"
+            );
+        }
 
         return $this->success($payout->fresh(), 'Payout rejected and earnings released.');
     }

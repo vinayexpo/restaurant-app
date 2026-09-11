@@ -110,6 +110,16 @@ class DeliveryPayoutService
                     'status' => 'paid',
                     'paid_at' => now(),
                 ]);
+
+                $payout->loadMissing('deliveryPartner.user');
+                if ($payout->deliveryPartner?->user) {
+                    app(\App\Services\NotificationService::class)->send(
+                        $payout->deliveryPartner->user,
+                        'system',
+                        'Payout completed',
+                        'Your payout of ₹'.number_format((float) $payout->amount, 2).' has been paid.'
+                    );
+                }
             }
 
             if (in_array($status, ['failed', 'reversed'], true)) {

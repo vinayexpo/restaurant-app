@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DeliveryEarning;
 use App\Models\DeliveryPartner;
 use App\Models\Order;
+use App\Services\NotificationService;
 use App\Services\OrderService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,10 @@ class DeliveryOrderController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private OrderService $orderService) {}
+    public function __construct(
+        private OrderService $orderService,
+        private NotificationService $notificationService,
+    ) {}
 
     public function available(Request $request): JsonResponse
     {
@@ -59,6 +63,17 @@ class DeliveryOrderController extends Controller
         }
 
         $order->update(['delivery_partner_id' => $request->user()->id]);
+
+        $order->loadMissing('user');
+        if ($order->user && $order->user->id !== $request->user()->id) {
+            $this->notificationService->send(
+                $order->user,
+                'order_status',
+                "Delivery partner assigned — {$order->order_number}",
+                'Your order has been picked up for delivery assignment and will be on its way soon.',
+                ['order_id' => $order->id, 'status' => $order->status]
+            );
+        }
 
         return $this->success($order->fresh(), 'Order accepted.');
     }
