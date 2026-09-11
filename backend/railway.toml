@@ -1,7 +1,8 @@
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
+buildCommand = "composer install --no-dev --optimize-autoloader"
 
 [deploy]
-startCommand = "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT"
+preDeployCommand = ["php artisan migrate --force"]
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
