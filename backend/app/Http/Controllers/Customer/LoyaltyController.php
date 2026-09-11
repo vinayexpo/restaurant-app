@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
-use App\Models\LoyaltyPoint;
 use App\Models\LoyaltyTier;
 use App\Models\LoyaltyTransaction;
 use App\Models\PlatformSetting;
@@ -21,10 +20,7 @@ class LoyaltyController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        $loyaltyPoint = LoyaltyPoint::with('tier')->firstOrCreate(
-            ['user_id' => $request->user()->id],
-            ['balance' => 0, 'lifetime_earned' => 0, 'tier_id' => 1]
-        );
+        $loyaltyPoint = $this->loyaltyService->pointsFor($request->user());
 
         $nextTier = LoyaltyTier::where('min_lifetime_points', '>', $loyaltyPoint->lifetime_earned)
             ->orderBy('min_lifetime_points')

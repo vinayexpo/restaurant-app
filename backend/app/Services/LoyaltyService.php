@@ -122,11 +122,15 @@ class LoyaltyService
         }
     }
 
-    private function pointsFor(User $user): LoyaltyPoint
+    public function pointsFor(User $user): LoyaltyPoint
     {
         return LoyaltyPoint::with('tier')->firstOrCreate(
             ['user_id' => $user->id],
-            ['balance' => 0, 'lifetime_earned' => 0, 'tier_id' => 1]
+            [
+                'balance' => 0,
+                'lifetime_earned' => 0,
+                'tier_id' => LoyaltyTier::orderBy('min_lifetime_points')->value('id'),
+            ]
         );
     }
 }
