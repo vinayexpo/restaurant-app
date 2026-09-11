@@ -29,7 +29,9 @@ export default function Cart() {
   useEffect(() => {
     cart.refresh().finally(() => setLoading(false))
     if (settings?.loyalty_enabled) {
-      loyaltyService.summary().then(({ data }) => setLoyaltyBalance(data.data.balance))
+      loyaltyService.summary()
+        .then(({ data }) => setLoyaltyBalance(data.data.balance))
+        .catch(() => setLoyaltyBalance(0))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
