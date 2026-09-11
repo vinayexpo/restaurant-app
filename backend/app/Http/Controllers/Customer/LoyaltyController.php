@@ -11,6 +11,7 @@ use App\Services\LoyaltyService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class LoyaltyController extends Controller
 {
@@ -20,27 +21,36 @@ class LoyaltyController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        $loyaltyPoint = $this->loyaltyService->pointsFor($request->user());
+        try {
+            $loyaltyPoint = $this->loyaltyService->pointsFor($request->user());
 
-        $nextTier = LoyaltyTier::where('min_lifetime_points', '>', $loyaltyPoint->lifetime_earned)
-            ->orderBy('min_lifetime_points')
-            ->first();
+            $nextTier = LoyaltyTier::where('min_lifetime_points', '>', $loyaltyPoint->lifetime_earned)
+                ->orderBy('min_lifetime_points')
+                ->first();
 
-        $nextExpiry = LoyaltyTransaction::where('user_id', $request->user()->id)
-            ->where('type', 'earned')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '>', now())
-            ->orderBy('expires_at')
-            ->first();
+            $nextExpiry = LoyaltyTransaction::where('user_id', $request->user()->id)
+                ->where('type', 'earned')
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', now())
+                ->orderBy('expires_at')
+                ->first();
 
-        return $this->success([
-            'balance' => $loyaltyPoint->balance,
-            'lifetime_earned' => $loyaltyPoint->lifetime_earned,
-            'tier' => $loyaltyPoint->tier,
-            'next_tier' => $nextTier,
-            'points_to_next_tier' => $nextTier ? max(0, $nextTier->min_lifetime_points - $loyaltyPoint->lifetime_earned) : 0,
-            'next_expiry' => $nextExpiry?->expires_at,
-        ]);
+            return $this->success([
+                'balance' => $loyaltyPoint->balance,
+                'lifetime_earned' => $loyaltyPoint->lifetime_earned,
+                'tier' => $loyaltyPoint->tier,
+                'next_tier' => $nextTier,
+                'points_to_next_tier' => $nextTier ? max(0, $nextTier->min_lifetime_points - $loyaltyPoint->lifetime_earned) : 0,
+                'next_expiry' => $nextExpiry?->expires_at,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('Unable to load loyalty summary.', [
+                'user_id' => $request->user()->id,
+                'exception' => $exception,
+            ]);
+
+            return $this->error('Unable to load loyalty information.', [], 500);
+        }
     }
 
     public function transactions(Request $request): JsonResponse
