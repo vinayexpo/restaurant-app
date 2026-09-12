@@ -157,6 +157,36 @@ export default function OwnerOrders() {
                 </div>
               ))}
             </div>
+            <div className="space-y-1.5 border-t border-neutral-100 pt-3 text-neutral-600">
+              <div className="flex justify-between">
+                <span>Food subtotal</span>
+                <span>₹{Number(selectedOrder.subtotal).toFixed(2)}</span>
+              </div>
+              {Number(selectedOrder.discount_amount) > 0 && (
+                <div className="flex justify-between text-accent-600">
+                  <span>Coupon discount{selectedOrder.coupon_code ? ` (${selectedOrder.coupon_code})` : ''}</span>
+                  <span>-₹{Number(selectedOrder.discount_amount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(selectedOrder.loyalty_discount_amount) > 0 && (
+                <div className="flex justify-between text-accent-600">
+                  <span>Loyalty discount ({selectedOrder.loyalty_points_redeemed} pts)</span>
+                  <span>-₹{Number(selectedOrder.loyalty_discount_amount).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Delivery fee</span>
+                <span>₹{Number(selectedOrder.delivery_fee).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>₹{Number(selectedOrder.tax_amount).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-neutral-200 pt-2 text-base font-bold text-neutral-900">
+                <span>Customer total</span>
+                <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
+              </div>
+            </div>
             <div className="border-t border-neutral-100 pt-2">
               <p className="font-semibold text-neutral-900">Payment</p>
               <p className="text-neutral-600 capitalize">{selectedOrder.payment_method} — {selectedOrder.payment_status}</p>
