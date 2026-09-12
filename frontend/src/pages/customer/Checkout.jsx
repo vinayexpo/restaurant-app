@@ -21,7 +21,6 @@ export default function Checkout() {
   const cart = useCart()
   const { openCheckout } = useRazorpay()
   const { user } = useSelector((state) => state.auth)
-  const settings = useSelector((state) => state.ui.settings)
 
   const { couponCode, loyaltyPoints = 0 } = location.state ?? {}
 
@@ -59,8 +58,8 @@ export default function Checkout() {
 
   const subtotal = cart.pricingPreview?.subtotal ?? 0
   const deliveryFee = cart.pricingPreview?.delivery_fee ?? 0
-  const taxRatePct = settings?.tax_rate_pct ?? 5
-  const total = Math.round((subtotal + deliveryFee) * (1 + taxRatePct / 100) * 100) / 100
+  const taxAmount = cart.pricingPreview?.tax_amount ?? 0
+  const total = Math.round((subtotal + deliveryFee + taxAmount) * 100) / 100
 
   const handleAddAddress = async (e) => {
     e.preventDefault()
@@ -230,6 +229,10 @@ export default function Checkout() {
             <div className="flex justify-between">
               <span>Delivery Fee</span>
               <span>₹{deliveryFee.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>₹{taxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t border-neutral-100 pt-2 text-base font-bold text-neutral-900">
               <span>Total</span>

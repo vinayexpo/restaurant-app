@@ -42,7 +42,7 @@ class OrderService
         $user = $request->user();
         $address = Address::where('id', $request->address_id)->where('user_id', $user->id)->firstOrFail();
 
-        $cart = Cart::where('user_id', $user->id)->with('items.menuItem')->firstOrFail();
+        $cart = Cart::where('user_id', $user->id)->with(['items.menuItem', 'items.variant'])->firstOrFail();
         $items = $cart->items;
 
         if ($items->isEmpty()) {
@@ -51,8 +51,8 @@ class OrderService
 
         $restaurant = Restaurant::findOrFail($cart->restaurant_id);
 
-        // 1. Subtotal — from DB prices, never trust client-sent totals
-        $subtotal = $items->sum(fn ($item) => $item->menuItem->price * $item->quantity);
+        // 1. Preserve the server-calculated cart price, including active menu discounts.
+        $subtotal = $items->sum(fn ($item) => $item->unit_price * $item->quantity);
 
         if ($subtotal < $restaurant->min_order_amount) {
             abort(422, "Minimum order amount is ₹{$restaurant->min_order_amount}.");
@@ -123,8 +123,8 @@ class OrderService
                     'menu_item_name' => $item->menuItem->name,
                     'variant_name' => $item->variant?->name,
                     'quantity' => $item->quantity,
-                    'unit_price' => $item->menuItem->price,
-                    'total_price' => $item->menuItem->price * $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'total_price' => $item->unit_price * $item->quantity,
                 ]);
             }
 
