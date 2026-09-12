@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { User, MapPin, Heart, Bell, BellOff, Camera, Plus, Trash2, Gem, LogOut, Check } from 'lucide-react'
+import { User, MapPin, Heart, Bell, BellOff, Camera, Plus, Pencil, Trash2, Gem, LogOut, Check } from 'lucide-react'
 import { authService } from '../../services/authService'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { pushService } from '../../services/pushService'
@@ -222,6 +222,7 @@ function AddressesTab() {
   const [addresses, setAddresses] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingAddressId, setEditingAddressId] = useState(null)
   const [form, setForm] = useState({
     label: 'Home',
     address_line1: '',
@@ -248,11 +249,17 @@ function AddressesTab() {
     setSaving(true)
     setErrors({})
     try {
-      await api.post('/addresses', form)
+      if (editingAddressId) {
+        await api.put(`/addresses/${editingAddressId}`, form)
+      } else {
+        await api.post('/addresses', form)
+      }
       setShowModal(false)
+      setEditingAddressId(null)
       setForm({ label: 'Home', address_line1: '', address_line2: '', city: '', state: '', pincode: '', latitude: null, longitude: null, is_default: false })
       touchedFieldsRef.current = new Set()
       load()
+      toast.success(editingAddressId ? 'Address updated.' : 'Address added.')
     } catch (error) {
       setErrors(error.response?.data?.errors ?? {})
     } finally {
@@ -266,8 +273,32 @@ function AddressesTab() {
   }
 
   const remove = async (id) => {
-    await api.delete(`/addresses/${id}`)
-    load()
+    if (!window.confirm('Delete this address?')) return
+    try {
+      await api.delete(`/addresses/${id}`)
+      load()
+      toast.success('Address deleted.')
+    } catch (error) {
+      toast.error(error.response?.data?.message ?? 'Could not delete address.')
+    }
+  }
+
+  const edit = (address) => {
+    setEditingAddressId(address.id)
+    setForm({
+      label: address.label,
+      address_line1: address.address_line1,
+      address_line2: address.address_line2 ?? '',
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      latitude: address.latitude,
+      longitude: address.longitude,
+      is_default: address.is_default,
+    })
+    setErrors({})
+    touchedFieldsRef.current = new Set(['address_line1', 'city', 'state', 'pincode'])
+    setShowModal(true)
   }
 
   if (loading) return null
@@ -278,6 +309,9 @@ function AddressesTab() {
         <Button
           size="sm"
           onClick={() => {
+            setEditingAddressId(null)
+            setForm({ label: 'Home', address_line1: '', address_line2: '', city: '', state: '', pincode: '', latitude: null, longitude: null, is_default: false })
+            setErrors({})
             touchedFieldsRef.current = new Set()
             setShowModal(true)
           }}
@@ -306,7 +340,10 @@ function AddressesTab() {
                     Set Default
                   </button>
                 )}
-                <button onClick={() => remove(addr.id)} className="text-neutral-400 hover:text-danger-500">
+                <button onClick={() => edit(addr)} className="text-neutral-400 hover:text-brand-600" aria-label={`Edit ${addr.label} address`}>
+                  <Pencil size={15} />
+                </button>
+                <button onClick={() => remove(addr.id)} className="text-neutral-400 hover:text-danger-500" aria-label={`Delete ${addr.label} address`}>
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -315,7 +352,7 @@ function AddressesTab() {
         </div>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Address">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editingAddressId ? 'Edit Address' : 'Add Address'}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <LocationPicker
             onChange={(loc) =>
@@ -350,6 +387,12 @@ function AddressesTab() {
             error={errors.address_line1?.[0]}
             required
           />
+          <Input
+            label="Address Line 2 (optional)"
+            value={form.address_line2}
+            onChange={(e) => setForm((p) => ({ ...p, address_line2: e.target.value }))}
+            error={errors.address_line2?.[0]}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="City"
@@ -383,7 +426,7 @@ function AddressesTab() {
             required
           />
           <Button type="submit" loading={saving} className="w-full">
-            Save Address
+            {editingAddressId ? 'Update Address' : 'Save Address'}
           </Button>
         </form>
       </Modal>
