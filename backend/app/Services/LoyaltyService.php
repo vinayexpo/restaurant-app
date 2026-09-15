@@ -80,19 +80,21 @@ class LoyaltyService
         $minRedeem = (int) PlatformSetting::get('loyalty_min_redeem', 100);
         $maxRedeemPct = (float) PlatformSetting::get('loyalty_max_redeem_pct', 20);
 
-        $pointsToRedeem = min($requestedPoints, $loyaltyPoint->balance);
+        $pointsAvailable = min($requestedPoints, $loyaltyPoint->balance);
 
-        $maxDiscountAllowed = $subtotal * $maxRedeemPct / 100;
-        $discountAmount = $pointsToRedeem * $redeemRate;
-
-        if ($discountAmount > $maxDiscountAllowed) {
-            $pointsToRedeem = (int) floor($maxDiscountAllowed / $redeemRate);
-            $discountAmount = $pointsToRedeem * $redeemRate;
-        }
-
-        if ($pointsToRedeem < $minRedeem) {
+        if ($pointsAvailable < $minRedeem) {
             abort(422, "A minimum of {$minRedeem} points is required to redeem loyalty points.");
         }
+
+        $maxDiscountAllowed = $subtotal * $maxRedeemPct / 100;
+        $maxPointsForOrder = (int) floor($maxDiscountAllowed / $redeemRate);
+
+        if ($maxPointsForOrder < $minRedeem) {
+            abort(422, "This order can redeem up to {$maxPointsForOrder} points, below the {$minRedeem}-point minimum. Add items or ask an administrator to adjust the redemption limit.");
+        }
+
+        $pointsToRedeem = min($pointsAvailable, $maxPointsForOrder);
+        $discountAmount = $pointsToRedeem * $redeemRate;
 
         return [round($discountAmount, 2), $pointsToRedeem];
     }

@@ -17,6 +17,7 @@ class PublicSettingsController extends Controller
             'loyalty_earn_rate' => PlatformSetting::get('loyalty_earn_rate', 10),
             'loyalty_redeem_rate' => PlatformSetting::get('loyalty_redeem_rate', 0.10),
             'loyalty_min_redeem' => PlatformSetting::get('loyalty_min_redeem', 100),
+            'loyalty_max_redeem_pct' => PlatformSetting::get('loyalty_max_redeem_pct', 20),
             'reviews_enabled' => PlatformSetting::get('reviews_enabled', true),
             'coupons_enabled' => PlatformSetting::get('coupons_enabled', true),
             'delivery_partner_enabled' => PlatformSetting::get('delivery_partner_enabled', true),

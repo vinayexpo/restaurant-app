@@ -59,9 +59,13 @@ export default function Cart() {
       setLoyaltyPreview(null)
       return
     }
-    const points = Math.min(loyaltyBalance, 500)
+    if (redeemablePoints < minRedeemPoints) {
+      alert(`This order can redeem up to ${redeemablePoints} points, below the ${minRedeemPoints}-point minimum.`)
+      return
+    }
+
     try {
-      const { data } = await loyaltyService.redeem(points)
+      const { data } = await loyaltyService.redeem(redeemablePoints)
       setLoyaltyPreview(data.data)
       setRedeemPoints(data.data.points_redeemed)
       setUseLoyalty(true)
@@ -96,6 +100,11 @@ export default function Cart() {
   const taxAmount = Math.round(taxableAmount * taxRatePct) / 100
   const total = Math.round((taxableAmount + deliveryFee + taxAmount) * 100) / 100
   const belowMinOrder = subtotal < (cart.cart.restaurant?.min_order_amount ?? 0)
+  const minRedeemPoints = Number(settings?.loyalty_min_redeem ?? 100)
+  const redeemRate = Number(settings?.loyalty_redeem_rate ?? 0.1)
+  const maxRedeemPercent = Number(settings?.loyalty_max_redeem_pct ?? 20)
+  const maxPointsForOrder = Math.floor((subtotal * maxRedeemPercent / 100) / redeemRate)
+  const redeemablePoints = Math.min(loyaltyBalance, 500, maxPointsForOrder)
 
   return (
     <motion.div {...pageTransitionVariants} className="mx-auto max-w-2xl px-4 py-6">
@@ -172,7 +181,7 @@ export default function Cart() {
           <label className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3">
             <span className="flex items-center gap-1.5 text-sm text-neutral-700">
               <Gem size={15} className="text-brand-500" />
-              Use loyalty points ({loyaltyBalance} available)
+              Use loyalty points ({loyaltyBalance} available, up to {redeemablePoints} on this order)
             </span>
             <input type="checkbox" checked={useLoyalty} onChange={toggleLoyalty} className="size-4 accent-brand-500" />
           </label>
