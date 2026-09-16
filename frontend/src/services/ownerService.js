@@ -27,6 +27,7 @@ export const ownerService = {
   deleteVariant: (itemId, variantId) => api.delete(`/owner/menu-items/${itemId}/variants/${variantId}`),
 
   orders: (params) => api.get('/owner/orders', { params }),
+  orderStatusCounts: () => api.get('/owner/orders/status-counts'),
   order: (id) => api.get(`/owner/orders/${id}`),
   updateOrderStatus: (id, payload) => api.patch(`/owner/orders/${id}/status`, payload),
 

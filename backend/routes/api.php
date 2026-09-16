@@ -141,6 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/menu-items/{id}/variants/{variantId}', [OwnerMenuItemController::class, 'deleteVariant']);
 
             Route::get('/orders', [OrderManageController::class, 'index']);
+            Route::get('/orders/status-counts', [OrderManageController::class, 'statusCounts']);
             Route::get('/orders/{id}', [OrderManageController::class, 'show']);
             Route::patch('/orders/{id}/status', [OrderManageController::class, 'updateStatus']);
 

@@ -32,6 +32,7 @@ export default function OwnerOrders() {
   const restaurant = useSelector((state) => state.owner.restaurant)
   const [activeTab, setActiveTab] = useState('pending')
   const [orders, setOrders] = useState([])
+  const [statusCounts, setStatusCounts] = useState({})
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -46,6 +47,8 @@ export default function OwnerOrders() {
         setMeta(data.meta)
       })
       .finally(() => setLoading(false))
+
+    ownerService.orderStatusCounts().then(({ data }) => setStatusCounts(data.data)).catch(() => {})
   }
 
   useEffect(() => load(1), [activeTab])
@@ -84,7 +87,7 @@ export default function OwnerOrders() {
   return (
     <div>
       <div className="mb-5 flex gap-1 overflow-x-auto border-b border-neutral-200">
-        {TABS.map(({ key, label }) => (
+          {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -92,7 +95,10 @@ export default function OwnerOrders() {
               activeTab === key ? 'border-brand-500 text-brand-600' : 'border-transparent text-neutral-500'
             }`}
           >
-            {label}
+            <span>{label}</span>
+            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs ${activeTab === key ? 'bg-brand-100 text-brand-700' : 'bg-neutral-100 text-neutral-500'}`}>
+              {statusCounts[key] ?? 0}
+            </span>
           </button>
         ))}
       </div>

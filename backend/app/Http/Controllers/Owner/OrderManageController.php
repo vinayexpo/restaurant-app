@@ -29,6 +29,16 @@ class OrderManageController extends Controller
         return $this->paginated($query->paginate(15));
     }
 
+    public function statusCounts(Request $request): JsonResponse
+    {
+        $counts = Order::where('restaurant_id', $request->get('restaurant')->id)
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        return $this->success($counts);
+    }
+
     public function show(Request $request, int $id): JsonResponse
     {
         $order = Order::where('restaurant_id', $request->get('restaurant')->id)
