@@ -1,16 +1,57 @@
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
-import { Bell, Check } from 'lucide-react'
+import { Bell, BellOff, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Pagination } from '../../components/Pagination'
 import { EmptyState } from '../../components/EmptyState'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { clearUnread } from '../../features/customer/notificationsSlice'
 import { pushService } from '../../services/pushService'
+import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { Button } from '../../components/Button'
 import { pageTransitionVariants } from '../../lib/motion'
 
-export function NotificationsPanel({ title = 'Notifications' }) {
+function PushNotificationControl() {
+  const { loading, enable, disable, isSupported, subscribed } = usePushNotifications()
+  const [error, setError] = useState('')
+
+  const toggle = async () => {
+    setError('')
+    try {
+      if (subscribed) {
+        await disable()
+        toast.success('Push notifications disabled.')
+      } else {
+        const enabled = await enable()
+        if (enabled) toast.success('Push notifications enabled.')
+        else setError('Browser permission is required to receive push notifications.')
+      }
+    } catch (pushError) {
+      setError(pushError.message ?? 'Could not update push notification settings.')
+    }
+  }
+
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-neutral-100 bg-white p-3.5">
+        <div className="flex items-center gap-2">
+          {subscribed ? <Bell size={16} className="text-brand-500" /> : <BellOff size={16} className="text-neutral-400" />}
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">Push notifications</p>
+            <p className="text-xs text-neutral-500">
+              {!isSupported ? 'Not supported in this browser.' : subscribed ? 'Enabled on this device.' : 'Receive new order alerts even when the app is closed.'}
+            </p>
+          </div>
+        </div>
+        {isSupported && <Button size="sm" variant="secondary" loading={loading} onClick={toggle}>{subscribed ? 'Disable' : 'Enable'}</Button>}
+      </div>
+      {error && <p className="-mt-2 mb-3 text-xs text-danger-600">{error}</p>}
+    </>
+  )
+}
+
+export function NotificationsPanel({ title = 'Notifications', showPushControl = false }) {
   const dispatch = useDispatch()
   const [notifications, setNotifications] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
@@ -49,6 +90,8 @@ export function NotificationsPanel({ title = 'Notifications' }) {
           </button>
         )}
       </div>
+
+      {showPushControl && <PushNotificationControl />}
 
       {loading ? (
         <div className="space-y-2">
