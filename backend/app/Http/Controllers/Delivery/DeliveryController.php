@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Delivery;
 use App\Events\DeliveryLocationUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryPartner;
+use App\Models\Order;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
