@@ -8,6 +8,7 @@ import { Input } from '../../components/Input'
 import { Modal } from '../../components/Modal'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
+import { Pagination } from '../../components/Pagination'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -15,6 +16,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
+  const [isActive, setIsActive] = useState('')
   const [showCreateOwner, setShowCreateOwner] = useState(false)
   const [createOwnerForm, setCreateOwnerForm] = useState({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
   const [createOwnerErrors, setCreateOwnerErrors] = useState({})
@@ -23,7 +25,7 @@ export default function AdminUsers() {
   const load = (page = 1) => {
     setLoading(true)
     adminService
-      .users({ page, search: search || undefined, role: role || undefined })
+      .users({ page, search: search || undefined, role: role || undefined, is_active: isActive || undefined })
       .then(({ data }) => {
         setUsers(data.data)
         setMeta(data.meta)
@@ -35,7 +37,7 @@ export default function AdminUsers() {
     const timer = setTimeout(() => load(1), 300)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, role])
+  }, [search, role, isActive])
 
   const toggleStatus = async (user) => {
     try {
@@ -102,6 +104,11 @@ export default function AdminUsers() {
           <option value="delivery_partner">Delivery Partner</option>
           <option value="admin">Admin</option>
         </select>
+        <select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
+          <option value="">All Statuses</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
       </div>
 
       {loading ? (
@@ -154,17 +161,7 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {meta.last_page > 1 && (
-        <div className="mt-4 flex justify-center gap-2">
-          <button disabled={meta.page <= 1} onClick={() => load(meta.page - 1)} className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Previous
-          </button>
-          <span className="flex items-center px-2 text-sm text-neutral-500">{meta.page} / {meta.last_page}</span>
-          <button disabled={meta.page >= meta.last_page} onClick={() => load(meta.page + 1)} className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination meta={meta} onPageChange={load} />
 
       <Modal open={showCreateOwner} onClose={() => setShowCreateOwner(false)} title="Create Restaurant Owner">
         <form onSubmit={handleCreateOwner} className="space-y-3">

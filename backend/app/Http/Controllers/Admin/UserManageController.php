@@ -35,15 +35,21 @@ class UserManageController extends Controller
     {
         $query = User::query();
 
-        if ($role = $request->query('role')) {
+        $filters = $request->validate([
+            'role' => 'nullable|string|max:50',
+            'is_active' => 'nullable|boolean',
+            'search' => 'nullable|string|max:100',
+        ]);
+
+        if ($role = $filters['role'] ?? null) {
             $query->where('role', $role);
         }
 
-        if ($request->has('is_active')) {
+        if (array_key_exists('is_active', $filters)) {
             $query->where('is_active', $request->boolean('is_active'));
         }
 
-        if ($search = $request->query('search')) {
+        if ($search = $filters['search'] ?? null) {
             $query->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('email', 'LIKE', "%{$search}%"));
         }
 

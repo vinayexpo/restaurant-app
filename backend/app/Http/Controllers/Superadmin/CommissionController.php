@@ -14,7 +14,33 @@ class CommissionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $commissions = PlatformCommission::with('restaurant:id,name')->latest()->paginate(15);
+        $filters = $request->validate([
+            'restaurant_id' => 'nullable|integer|exists:restaurants,id',
+            'restaurant' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date_format:Y-m-d',
+            'date_to' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $query = PlatformCommission::with('restaurant:id,name');
+
+        if ($restaurantId = $filters['restaurant_id'] ?? null) {
+            $query->where('restaurant_id', $restaurantId);
+        }
+
+        if ($restaurant = $filters['restaurant'] ?? null) {
+            $query->whereHas('restaurant', fn ($restaurantQuery) => $restaurantQuery
+                ->where('name', 'LIKE', "%{$restaurant}%"));
+        }
+
+        if ($from = $filters['date_from'] ?? null) {
+            $query->whereDate('effective_from', '>=', $from);
+        }
+
+        if ($to = $filters['date_to'] ?? null) {
+            $query->whereDate('effective_from', '<=', $to);
+        }
+
+        $commissions = $query->latest()->paginate(15);
 
         return $this->paginated($commissions);
     }

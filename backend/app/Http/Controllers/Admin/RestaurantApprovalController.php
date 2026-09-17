@@ -22,12 +22,27 @@ class RestaurantApprovalController extends Controller
     {
         $query = Restaurant::with('user:id,name,email');
 
-        match ($request->query('status')) {
+        $filters = $request->validate([
+            'status' => 'nullable|in:pending,approved,suspended',
+            'search' => 'nullable|string|max:100',
+        ]);
+
+        match ($filters['status'] ?? null) {
             'pending' => $query->where('is_active', false)->whereNull('rejection_reason'),
             'approved' => $query->where('is_active', true),
             'suspended' => $query->where('is_active', false)->whereNotNull('rejection_reason'),
             default => null,
         };
+
+        if ($search = $filters['search'] ?? null) {
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%")
+                    ->orWhereHas('user', fn ($userQuery) => $userQuery
+                        ->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%"));
+            });
+        }
 
         return $this->paginated($query->latest()->paginate(15));
     }

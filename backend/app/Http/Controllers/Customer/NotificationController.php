@@ -14,7 +14,18 @@ class NotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'read_status' => 'nullable|in:read,unread',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
         $notifications = Notification::where('user_id', $request->user()->id)
+            ->when($filters['read_status'] ?? null, function ($query, $status) {
+                $status === 'read' ? $query->whereNotNull('read_at') : $query->whereNull('read_at');
+            })
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
             ->latest()
             ->paginate(15);
 

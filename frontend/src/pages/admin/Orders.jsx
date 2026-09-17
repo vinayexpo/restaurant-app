@@ -5,7 +5,7 @@ import { Modal } from '../../components/Modal'
 import { Pagination } from '../../components/Pagination'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, Search } from 'lucide-react'
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([])
@@ -13,12 +13,14 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [search, setSearch] = useState('')
+  const [customer, setCustomer] = useState('')
   const [selected, setSelected] = useState(null)
 
   const load = (page = 1) => {
     setLoading(true)
     adminService
-      .orders({ page, status: status || undefined, payment_method: paymentMethod || undefined })
+      .orders({ page, status: status || undefined, payment_method: paymentMethod || undefined, search: search || undefined, customer: customer || undefined })
       .then(({ data }) => {
         setOrders(data.data)
         setMeta(data.meta)
@@ -26,13 +28,22 @@ export default function AdminOrders() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => load(1), [status, paymentMethod])
+  useEffect(() => {
+    const timer = setTimeout(() => load(1), search || customer ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, paymentMethod, search, customer])
 
   return (
     <div>
       <h1 className="mb-4 text-lg font-bold text-neutral-900">All Orders</h1>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="relative min-w-52 flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order number or customer..." className="h-9 w-full rounded-md border border-neutral-200 pl-9 pr-3 text-sm" />
+        </div>
+        <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name or email" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
           <option value="">All Statuses</option>
           {['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'on_the_way', 'delivered', 'cancelled'].map((s) => (

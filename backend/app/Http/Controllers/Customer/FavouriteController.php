@@ -15,12 +15,19 @@ class FavouriteController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:80',
+        ]);
+
         $favourites = Favourite::where('user_id', $request->user()->id)
             ->with('restaurant')
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->whereHas('restaurant', fn ($restaurant) => $restaurant->where('name', 'like', "%{$search}%"));
+            })
             ->latest()
-            ->get();
+            ->paginate(15);
 
-        return $this->success($favourites);
+        return $this->paginated($favourites);
     }
 
     public function store(Request $request, int $restaurantId): JsonResponse

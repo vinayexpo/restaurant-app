@@ -12,9 +12,26 @@ class CouponManageController extends Controller
 {
     use ApiResponse;
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return $this->paginated(Coupon::whereNull('restaurant_id')->latest()->paginate(15));
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:100',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $query = Coupon::whereNull('restaurant_id');
+
+        if ($search = $filters['search'] ?? null) {
+            $query->where(fn ($query) => $query
+                ->where('code', 'LIKE', "%{$search}%")
+                ->orWhere('title', 'LIKE', "%{$search}%"));
+        }
+
+        if (array_key_exists('is_active', $filters)) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        return $this->paginated($query->latest()->paginate(15));
     }
 
     public function store(Request $request): JsonResponse

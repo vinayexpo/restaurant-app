@@ -18,12 +18,35 @@ class OrderManageController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'status' => 'nullable|string|in:pending,confirmed,preparing,ready_for_pickup,picked_up,on_the_way,delivered,cancelled',
+            'search' => 'nullable|string|max:100',
+            'customer' => 'nullable|string|max:100',
+            'payment_method' => 'nullable|string|in:cod,razorpay',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
         $query = Order::where('restaurant_id', $request->get('restaurant')->id)
             ->with(['user:id,name,phone', 'items'])
             ->latest();
 
-        if ($status = $request->query('status')) {
+        if ($status = $filters['status'] ?? null) {
             $query->where('status', $status);
+        }
+        if ($search = $filters['search'] ?? null) {
+            $query->where('order_number', 'like', "%{$search}%");
+        }
+        if ($customer = $filters['customer'] ?? null) {
+            $query->whereHas('user', fn ($user) => $user->where('name', 'like', "%{$customer}%"));
+        }
+        if ($paymentMethod = $filters['payment_method'] ?? null) {
+            $query->where('payment_method', $paymentMethod);
+        }
+        if ($from = $filters['date_from'] ?? null) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $filters['date_to'] ?? null) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         return $this->paginated($query->paginate(15));

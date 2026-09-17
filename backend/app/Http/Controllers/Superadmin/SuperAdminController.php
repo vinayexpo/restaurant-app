@@ -13,9 +13,26 @@ class SuperAdminController extends Controller
 {
     use ApiResponse;
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return $this->paginated(User::where('role', 'admin')->latest()->paginate(15));
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:100',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $query = User::where('role', 'admin');
+
+        if ($search = $filters['search'] ?? null) {
+            $query->where(fn ($query) => $query
+                ->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('email', 'LIKE', "%{$search}%"));
+        }
+
+        if (array_key_exists('is_active', $filters)) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        return $this->paginated($query->latest()->paginate(15));
     }
 
     public function bootstrapStatus(): JsonResponse

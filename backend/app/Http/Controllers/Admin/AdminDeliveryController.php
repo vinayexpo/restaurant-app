@@ -19,8 +19,20 @@ class AdminDeliveryController extends Controller
     {
         $query = DeliveryPartner::with('user:id,name,email,phone');
 
-        if ($request->has('is_verified')) {
+        $filters = $request->validate([
+            'is_verified' => 'nullable|boolean',
+            'search' => 'nullable|string|max:100',
+        ]);
+
+        if (array_key_exists('is_verified', $filters)) {
             $query->where('is_verified', $request->boolean('is_verified'));
+        }
+
+        if ($search = $filters['search'] ?? null) {
+            $query->whereHas('user', fn ($userQuery) => $userQuery
+                ->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('email', 'LIKE', "%{$search}%")
+                ->orWhere('phone', 'LIKE', "%{$search}%"));
         }
 
         return $this->paginated($query->latest()->paginate(15));

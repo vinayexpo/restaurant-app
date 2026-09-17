@@ -9,7 +9,7 @@ export const deliveryService = {
   toggleAvailability: () => api.patch('/delivery/availability'),
   updateLocation: (latitude, longitude) => api.patch('/delivery/location', { latitude, longitude }),
 
-  availableOrders: () => api.get('/delivery/orders/available'),
+  availableOrders: (params) => api.get('/delivery/orders/available', { params }),
   acceptOrder: (id) => api.post(`/delivery/orders/${id}/accept`),
   updateOrderStatus: (id, status) => api.patch(`/delivery/orders/${id}/status`, { status }),
   confirmCashReceived: (id) => api.patch(`/delivery/orders/${id}/payment`),

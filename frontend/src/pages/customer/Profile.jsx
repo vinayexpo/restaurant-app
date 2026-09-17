@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -436,28 +436,32 @@ function AddressesTab() {
 
 function FavouritesTab() {
   const [favourites, setFavourites] = useState([])
+  const [meta, setMeta] = useState({ page: 1, last_page: 1 })
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const load = () => api.get('/favourites').then(({ data }) => setFavourites(data.data))
+  const load = useCallback((page = 1) => api.get('/favourites', { params: { page, search } }).then(({ data }) => {
+    setFavourites(data.data)
+    setMeta(data.meta)
+  }), [search])
 
   useEffect(() => {
-    load().finally(() => setLoading(false))
-  }, [])
+    load(1).finally(() => setLoading(false))
+  }, [load])
 
   const remove = async (restaurantId) => {
     await api.delete(`/favourites/${restaurantId}`)
-    setFavourites((prev) => prev.filter((f) => f.restaurant_id !== restaurantId))
+    load(meta.page)
   }
 
   if (loading) return null
 
-  if (favourites.length === 0) {
-    return <EmptyState icon={Heart} title="No favourites yet" description="Heart restaurants you love to find them here." />
-  }
-
   return (
     <div className="space-y-2">
-      {favourites.map((fav) => (
+      <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search favourites" className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+      {favourites.length === 0 ? (
+        <EmptyState icon={Heart} title={search ? 'No matching favourites' : 'No favourites yet'} description={search ? 'Try a different restaurant name.' : 'Heart restaurants you love to find them here.'} />
+      ) : favourites.map((fav) => (
         <div key={fav.id} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white p-3.5">
           <Link to={`/restaurants/${fav.restaurant?.slug}`} className="text-sm font-medium text-neutral-900">
             {fav.restaurant?.name}
@@ -467,6 +471,7 @@ function FavouritesTab() {
           </button>
         </div>
       ))}
+      <Pagination meta={meta} onPageChange={load} />
     </div>
   )
 }
@@ -477,16 +482,17 @@ function NotificationsTab() {
   const [notifications, setNotifications] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({ read_status: '', date_from: '', date_to: '' })
 
-  const load = (page = 1) =>
-    pushService.list(page).then(({ data }) => {
+  const load = useCallback((page = 1) =>
+    pushService.list({ page, ...filters }).then(({ data }) => {
       setNotifications(data.data)
       setMeta(data.meta)
-    })
+    }), [filters])
 
   useEffect(() => {
-    load().finally(() => setLoading(false))
-  }, [])
+    load(1).finally(() => setLoading(false))
+  }, [load])
 
   const togglePush = async () => {
     setPushError('')
@@ -533,6 +539,16 @@ function NotificationsTab() {
         )}
       </div>
       {pushError && <p className="mb-3 text-xs text-danger-600">{pushError}</p>}
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+        <select value={filters.read_status} onChange={(e) => setFilters((current) => ({ ...current, read_status: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700">
+          <option value="">All notifications</option>
+          <option value="unread">Unread</option>
+          <option value="read">Read</option>
+        </select>
+        <input type="date" aria-label="Profile notifications from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+        <input type="date" aria-label="Profile notifications to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+      </div>
 
       {notifications.length === 0 ? (
         <EmptyState icon={Bell} title="No notifications" description="You're all caught up." />

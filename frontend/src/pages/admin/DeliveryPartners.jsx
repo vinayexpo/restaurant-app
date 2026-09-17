@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Star, Bike } from 'lucide-react'
+import { Star, Bike, Search } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Button } from '../../components/Button'
 import { Pagination } from '../../components/Pagination'
@@ -11,10 +11,12 @@ export default function AdminDeliveryPartners() {
   const [partners, setPartners] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [isVerified, setIsVerified] = useState('')
 
   const load = (page = 1) =>
     adminService
-      .deliveryPartners({ page })
+      .deliveryPartners({ page, search: search || undefined, is_verified: isVerified || undefined })
       .then(({ data }) => {
         setPartners(data.data)
         setMeta(data.meta)
@@ -22,8 +24,10 @@ export default function AdminDeliveryPartners() {
       .finally(() => setLoading(false))
 
   useEffect(() => {
-    load()
-  }, [])
+    const timer = setTimeout(() => load(1), search ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isVerified])
 
   const verify = async (id) => {
     try {
@@ -54,6 +58,18 @@ export default function AdminDeliveryPartners() {
   return (
     <div>
       <h1 className="mb-4 text-lg font-bold text-neutral-900">Delivery Partners</h1>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="relative min-w-52 flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, or phone..." className="h-9 w-full rounded-md border border-neutral-200 pl-9 pr-3 text-sm" />
+        </div>
+        <select value={isVerified} onChange={(e) => setIsVerified(e.target.value)} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
+          <option value="">All Verification States</option>
+          <option value="1">Verified</option>
+          <option value="0">Pending</option>
+        </select>
+      </div>
 
       {partners.length === 0 ? (
         <EmptyState icon={Bike} title="No delivery partners yet" />

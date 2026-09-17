@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -7,6 +7,7 @@ import { orderService } from '../../services/orderService'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { Pagination } from '../../components/Pagination'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { pageTransitionVariants } from '../../lib/motion'
 
@@ -14,25 +15,24 @@ export default function OrderHistory() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [lastPage, setLastPage] = useState(1)
+  const [meta, setMeta] = useState({ page: 1, last_page: 1 })
+  const [filters, setFilters] = useState({ status: '', date_from: '', date_to: '' })
   const [reorderingId, setReorderingId] = useState(null)
 
-  const load = (pageNum = 1) => {
+  const load = useCallback((pageNum = 1) => {
     setLoading(true)
     orderService
-      .list({ page: pageNum })
+      .list({ page: pageNum, ...filters })
       .then(({ data }) => {
         setOrders(data.data)
-        setPage(data.meta.page)
-        setLastPage(data.meta.last_page)
+        setMeta(data.meta)
       })
       .finally(() => setLoading(false))
-  }
+  }, [filters])
 
   useEffect(() => {
-    load()
-  }, [])
+    load(1)
+  }, [load])
 
   const handleReorder = async (id) => {
     setReorderingId(id)
@@ -54,6 +54,26 @@ export default function OrderHistory() {
   return (
     <motion.div {...pageTransitionVariants} className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="mb-5 text-xl font-bold text-neutral-900">Order History</h1>
+
+      <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters((current) => ({ ...current, status: e.target.value }))}
+          className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700"
+        >
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="preparing">Preparing</option>
+          <option value="ready_for_pickup">Ready for pickup</option>
+          <option value="picked_up">Picked up</option>
+          <option value="on_the_way">On the way</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <input type="date" aria-label="Orders from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+        <input type="date" aria-label="Orders to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+      </div>
 
       {loading ? (
         <div className="rounded-lg border border-neutral-100 bg-white px-4">
@@ -105,19 +125,7 @@ export default function OrderHistory() {
             ))}
           </div>
 
-          {lastPage > 1 && (
-            <div className="mt-5 flex justify-center gap-2">
-              <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => load(page - 1)}>
-                Previous
-              </Button>
-              <span className="flex items-center px-3 text-sm text-neutral-500">
-                Page {page} of {lastPage}
-              </span>
-              <Button size="sm" variant="secondary" disabled={page >= lastPage} onClick={() => load(page + 1)}>
-                Next
-              </Button>
-            </div>
-          )}
+          <Pagination meta={meta} onPageChange={load} />
         </>
       )}
     </motion.div>

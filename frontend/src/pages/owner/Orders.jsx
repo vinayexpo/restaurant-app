@@ -37,11 +37,12 @@ export default function OwnerOrders() {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [advancingId, setAdvancingId] = useState(null)
+  const [filters, setFilters] = useState({ search: '', customer: '', payment_method: '', date_from: '', date_to: '' })
 
   const load = (page = 1) => {
     setLoading(true)
     ownerService
-      .orders({ status: activeTab, page })
+      .orders({ status: activeTab, page, ...filters })
       .then(({ data }) => {
         setOrders(data.data)
         setMeta(data.meta)
@@ -51,7 +52,7 @@ export default function OwnerOrders() {
     ownerService.orderStatusCounts().then(({ data }) => setStatusCounts(data.data)).catch(() => {})
   }
 
-  useEffect(() => load(1), [activeTab])
+  useEffect(() => load(1), [activeTab, filters])
 
   useEffect(() => {
     if (!restaurant?.id) return
@@ -107,6 +108,16 @@ export default function OwnerOrders() {
             </span>
           </button>
         ))}
+      </div>
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <input value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} placeholder="Order number" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <input value={filters.customer} onChange={(e) => setFilters((current) => ({ ...current, customer: e.target.value }))} placeholder="Customer name" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <select value={filters.payment_method} onChange={(e) => setFilters((current) => ({ ...current, payment_method: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
+          <option value="">All payments</option><option value="cod">Cash on delivery</option><option value="razorpay">Online payment</option>
+        </select>
+        <input type="date" aria-label="Orders from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <input type="date" aria-label="Orders to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
       </div>
 
       {loading ? (

@@ -30,16 +30,15 @@ export default function OwnerCoupons() {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [filters, setFilters] = useState({ code: '', active: '', validity: '' })
 
   const load = (page = 1) =>
-    ownerService.coupons({ page }).then(({ data }) => {
+    ownerService.coupons({ page, ...filters }).then(({ data }) => {
       setCoupons(data.data)
       setMeta(data.meta)
     })
 
-  useEffect(() => {
-    load().finally(() => setLoading(false))
-  }, [])
+  useEffect(() => { load().finally(() => setLoading(false)) }, [filters])
 
   const change = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }))
 
@@ -85,6 +84,12 @@ export default function OwnerCoupons() {
         <Button size="sm" onClick={() => setShowModal(true)}>
           <Plus size={14} /> Create Coupon
         </Button>
+      </div>
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+        <input value={filters.code} onChange={(e) => setFilters((current) => ({ ...current, code: e.target.value }))} placeholder="Search coupon code" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <select value={filters.active} onChange={(e) => setFilters((current) => ({ ...current, active: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">Any activity</option><option value="1">Active</option><option value="0">Inactive</option></select>
+        <select value={filters.validity} onChange={(e) => setFilters((current) => ({ ...current, validity: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">Any validity</option><option value="current">Currently valid</option><option value="upcoming">Upcoming</option><option value="expired">Expired</option></select>
       </div>
 
       {coupons.length === 0 ? (

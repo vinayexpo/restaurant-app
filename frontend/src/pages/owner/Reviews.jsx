@@ -14,11 +14,12 @@ export default function OwnerReviews() {
   const [ratingFilter, setRatingFilter] = useState('')
   const [replyDrafts, setReplyDrafts] = useState({})
   const [submittingId, setSubmittingId] = useState(null)
+  const [filters, setFilters] = useState({ replied: '', search: '', date_from: '', date_to: '' })
 
   const load = (page = 1) => {
     setLoading(true)
     ownerService
-      .reviews({ page, ...(ratingFilter ? { rating: ratingFilter } : {}) })
+      .reviews({ page, rating: ratingFilter, ...filters })
       .then(({ data }) => {
         setReviews(data.data)
         setMeta(data.meta)
@@ -26,7 +27,7 @@ export default function OwnerReviews() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => load(1), [ratingFilter])
+  useEffect(() => load(1), [ratingFilter, filters])
 
   const submitReply = async (id) => {
     const reply = replyDrafts[id]
@@ -59,6 +60,13 @@ export default function OwnerReviews() {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <input value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} placeholder="Search reviewer or comment" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <select value={filters.replied} onChange={(e) => setFilters((current) => ({ ...current, replied: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">All replies</option><option value="1">Replied</option><option value="0">Awaiting reply</option></select>
+        <input type="date" aria-label="Reviews from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <input type="date" aria-label="Reviews to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
       </div>
 
       {loading ? (

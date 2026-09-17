@@ -45,7 +45,16 @@ class LoyaltyController extends Controller
 
     public function transactions(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'type' => 'nullable|in:earned,redeemed,expired,bonus,adjusted',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
         $transactions = LoyaltyTransaction::where('user_id', $request->user()->id)
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
             ->latest()
             ->paginate(15);
 

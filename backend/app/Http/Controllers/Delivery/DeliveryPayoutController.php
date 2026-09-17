@@ -42,8 +42,22 @@ class DeliveryPayoutController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        return $this->paginated($this->partner($request)->payouts()
-            ->with('payoutAccount:id,type,account_holder_name')->latest()->paginate(15));
+        $filters = $request->validate([
+            'status' => 'nullable|string|in:requested,processing,paid,rejected,failed',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
+        $payouts = $this->partner($request)->payouts()
+            ->with('payoutAccount:id,type,account_holder_name')
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where('provider_payout_id', 'like', "%{$search}%"))
+            ->when($filters['date_from'] ?? null, fn ($query, $from) => $query->whereDate('created_at', '>=', $from))
+            ->when($filters['date_to'] ?? null, fn ($query, $to) => $query->whereDate('created_at', '<=', $to))
+            ->latest()->paginate(15);
+
+        return $this->paginated($payouts);
     }
 
     public function store(Request $request): JsonResponse

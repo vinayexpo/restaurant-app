@@ -8,6 +8,7 @@ import { superadminService } from '../../services/superadminService'
 import { setCredentials } from '../../features/auth/authSlice'
 import { setImpersonating } from '../../features/superadmin/superadminSlice'
 import { Button } from '../../components/Button'
+import { Pagination } from '../../components/Pagination'
 
 const PANEL_HOME = {
   customer: '/',
@@ -23,17 +24,23 @@ export default function SuperadminImpersonation() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [impersonatingId, setImpersonatingId] = useState(null)
+  const [meta, setMeta] = useState({ page: 1, last_page: 1 })
 
-  const handleSearch = async (e) => {
-    e.preventDefault()
+  const load = async (page = 1) => {
     if (!search.trim()) return
     setLoading(true)
     try {
-      const { data } = await adminService.users({ search: search.trim() })
+      const { data } = await adminService.users({ search: search.trim(), page })
       setResults(data.data)
+      setMeta(data.meta)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    load(1)
   }
 
   const impersonate = async (user) => {
@@ -85,6 +92,8 @@ export default function SuperadminImpersonation() {
           ))}
         </div>
       )}
+
+      <Pagination meta={meta} onPageChange={load} />
     </div>
   )
 }

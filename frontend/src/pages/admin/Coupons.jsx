@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Tag } from 'lucide-react'
+import { Plus, Trash2, Tag, Search } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Input } from '../../components/Input'
 import { Select } from '../../components/Select'
@@ -30,16 +30,20 @@ export default function AdminCoupons() {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
+  const [isActive, setIsActive] = useState('')
 
   const load = (page = 1) =>
-    adminService.coupons({ page }).then(({ data }) => {
+    adminService.coupons({ page, search: search || undefined, is_active: isActive || undefined }).then(({ data }) => {
       setCoupons(data.data)
       setMeta(data.meta)
     })
 
   useEffect(() => {
-    load().finally(() => setLoading(false))
-  }, [])
+    const timer = setTimeout(() => load(1).finally(() => setLoading(false)), search ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isActive])
 
   const change = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }))
 
@@ -80,6 +84,18 @@ export default function AdminCoupons() {
         <Button size="sm" onClick={() => setShowModal(true)}>
           <Plus size={14} /> Create Coupon
         </Button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="relative min-w-52 flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search code or title..." className="h-9 w-full rounded-md border border-neutral-200 pl-9 pr-3 text-sm" />
+        </div>
+        <select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
+          <option value="">All Statuses</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
       </div>
 
       {coupons.length === 0 ? (

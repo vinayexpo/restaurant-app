@@ -19,8 +19,11 @@ export default function SuperadminCommissions() {
   const [form, setForm] = useState({ restaurant_id: '', rate_pct: '', effective_from: '', notes: '' })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
+  const [restaurant, setRestaurant] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
-  const load = (page = 1) => superadminService.commissions({ page }).then(({ data }) => {
+  const load = (page = 1) => superadminService.commissions({ page, restaurant: restaurant || undefined, date_from: dateFrom || undefined, date_to: dateTo || undefined }).then(({ data }) => {
     setCommissions(data.data)
     setMeta(data.meta)
   })
@@ -28,7 +31,15 @@ export default function SuperadminCommissions() {
   useEffect(() => {
     load().finally(() => setLoading(false))
     adminService.restaurants({ status: 'approved' }).then(({ data }) => setRestaurants(data.data))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (loading) return
+    const timer = setTimeout(() => load(1), restaurant ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant, dateFrom, dateTo])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -67,6 +78,12 @@ export default function SuperadminCommissions() {
         <Button size="sm" onClick={() => setShowModal(true)}>
           <Plus size={14} /> Add Override
         </Button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input value={restaurant} onChange={(e) => setRestaurant(e.target.value)} placeholder="Filter by restaurant..." className="h-9 min-w-52 flex-1 rounded-md border border-neutral-200 px-3 text-sm" />
+        <Input label="Effective from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} containerClassName="w-40" />
+        <Input label="Effective to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} containerClassName="w-40" />
       </div>
 
       {commissions.length === 0 ? (

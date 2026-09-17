@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, KeyRound } from 'lucide-react'
+import { Plus, Trash2, KeyRound, Search } from 'lucide-react'
 import { superadminService } from '../../services/superadminService'
 import { Input } from '../../components/Input'
 import { Button } from '../../components/Button'
@@ -18,10 +18,12 @@ export default function SuperadminAdmins() {
   const [saving, setSaving] = useState(false)
   const [passwordTarget, setPasswordTarget] = useState(null)
   const [newPassword, setNewPassword] = useState('')
+  const [search, setSearch] = useState('')
+  const [isActive, setIsActive] = useState('')
 
   const load = (page = 1) =>
     superadminService
-      .admins({ page })
+      .admins({ page, search: search || undefined, is_active: isActive || undefined })
       .then(({ data }) => {
         setAdmins(data.data)
         setMeta(data.meta)
@@ -29,8 +31,10 @@ export default function SuperadminAdmins() {
       .finally(() => setLoading(false))
 
   useEffect(() => {
-    load()
-  }, [])
+    const timer = setTimeout(() => load(1), search ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isActive])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -85,6 +89,18 @@ export default function SuperadminAdmins() {
         </Button>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="relative min-w-52 flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email..." className="h-9 w-full rounded-md border border-neutral-200 pl-9 pr-3 text-sm" />
+        </div>
+        <select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">
+          <option value="">All Statuses</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </div>
+
       {admins.length === 0 ? (
         <EmptyState title="No admin accounts yet" />
       ) : (
@@ -93,7 +109,7 @@ export default function SuperadminAdmins() {
             <div key={a.id} className="flex items-center justify-between rounded-lg border border-neutral-100 bg-white p-3.5">
               <div>
                 <p className="text-sm font-semibold text-neutral-900">{a.name}</p>
-                <p className="text-xs text-neutral-500">{a.email}</p>
+                <p className="text-xs text-neutral-500">{a.email} · {a.is_active ? 'Active' : 'Inactive'}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setPasswordTarget(a)} className="text-neutral-400 hover:text-brand-500">

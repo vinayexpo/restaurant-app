@@ -3,26 +3,28 @@ import { motion } from 'framer-motion'
 import { Gem, Trophy } from 'lucide-react'
 import { loyaltyService } from '../../services/loyaltyService'
 import { SkeletonListRow, SkeletonStat } from '../../components/Skeleton'
+import { Pagination } from '../../components/Pagination'
 import { pageTransitionVariants } from '../../lib/motion'
 
 export default function LoyaltyProfile() {
   const [summary, setSummary] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [pagination, setPagination] = useState({ page: 1, last_page: 1 })
+  const [filters, setFilters] = useState({ type: '', date_from: '', date_to: '' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([loyaltyService.summary(), loyaltyService.transactions({ page: 1 })])
+    Promise.all([loyaltyService.summary(), loyaltyService.transactions({ page: 1, ...filters })])
       .then(([summaryRes, txRes]) => {
         setSummary(summaryRes.data.data)
         setTransactions(txRes.data.data)
         setPagination(txRes.data.meta)
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [filters])
 
   const loadPage = (page) => {
-    loyaltyService.transactions({ page }).then(({ data }) => {
+    loyaltyService.transactions({ page, ...filters }).then(({ data }) => {
       setTransactions(data.data)
       setPagination(data.meta)
     })
@@ -86,6 +88,18 @@ export default function LoyaltyProfile() {
       )}
 
       <h2 className="mb-3 mt-6 text-sm font-bold text-neutral-900">Transaction History</h2>
+      <div className="mb-3 grid gap-2 sm:grid-cols-3">
+        <select value={filters.type} onChange={(e) => setFilters((current) => ({ ...current, type: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700">
+          <option value="">All types</option>
+          <option value="earned">Earned</option>
+          <option value="redeemed">Redeemed</option>
+          <option value="expired">Expired</option>
+          <option value="bonus">Bonus</option>
+          <option value="adjusted">Adjusted</option>
+        </select>
+        <input type="date" aria-label="Transactions from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+        <input type="date" aria-label="Transactions to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+      </div>
       {transactions.length === 0 ? (
         <p className="text-sm text-neutral-500">No transactions yet.</p>
       ) : (
@@ -108,27 +122,7 @@ export default function LoyaltyProfile() {
         </div>
       )}
 
-      {pagination.last_page > 1 && (
-        <div className="mt-4 flex justify-center gap-2">
-          <button
-            disabled={pagination.page <= 1}
-            onClick={() => loadPage(pagination.page - 1)}
-            className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40"
-          >
-            Previous
-          </button>
-          <span className="flex items-center px-2 text-sm text-neutral-500">
-            {pagination.page} / {pagination.last_page}
-          </span>
-          <button
-            disabled={pagination.page >= pagination.last_page}
-            onClick={() => loadPage(pagination.page + 1)}
-            className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination meta={pagination} onPageChange={loadPage} />
     </motion.div>
   )
 }

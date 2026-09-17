@@ -16,9 +16,11 @@ export default function DeliveryEarnings() {
   const [payoutStatus, setPayoutStatus] = useState('')
   const [payouts, setPayouts] = useState([])
   const [payoutMeta, setPayoutMeta] = useState(null)
+  const [earningFilters, setEarningFilters] = useState({ status: '', search: '', date_from: '', date_to: '' })
+  const [payoutFilters, setPayoutFilters] = useState({ status: '', search: '', date_from: '', date_to: '' })
 
   const loadEarnings = (page = 1) => {
-    deliveryService.earnings({ page }).then(({ data }) => {
+    deliveryService.earnings({ page, ...earningFilters }).then(({ data }) => {
       setEarnings(data.data)
       setMeta(data.meta)
       setSelectedEarnings([])
@@ -26,7 +28,7 @@ export default function DeliveryEarnings() {
   }
 
   const loadPayouts = (page = 1) => {
-    deliveryService.payouts({ page }).then(({ data }) => {
+    deliveryService.payouts({ page, ...payoutFilters }).then(({ data }) => {
       setPayouts(data.data)
       setPayoutMeta(data.meta)
     })
@@ -44,6 +46,9 @@ export default function DeliveryEarnings() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { if (!loading) loadEarnings() }, [earningFilters])
+  useEffect(() => { if (!loading) loadPayouts() }, [payoutFilters])
 
   const selectedAmount = earnings
     .filter((earning) => selectedEarnings.includes(earning.id))
@@ -127,6 +132,7 @@ export default function DeliveryEarnings() {
       </section>
 
       <h2 className="mb-2 text-sm font-bold text-neutral-900">Per-Order History</h2>
+      <FilterControls filters={earningFilters} setFilters={setEarningFilters} searchPlaceholder="Search order number" statuses={[['', 'All statuses'], ['pending', 'Pending'], ['paid', 'Paid']]} />
       {earnings.length === 0 ? (
         <EmptyState icon={Wallet} title="No earnings yet" description="Complete deliveries to start earning." />
       ) : (
@@ -150,6 +156,7 @@ export default function DeliveryEarnings() {
 
       <section className="mt-8">
         <h2 className="mb-2 text-sm font-bold text-neutral-900">Payout history</h2>
+        <FilterControls filters={payoutFilters} setFilters={setPayoutFilters} searchPlaceholder="Search payout reference" statuses={[['', 'All statuses'], ['requested', 'Requested'], ['processing', 'Processing'], ['paid', 'Paid'], ['rejected', 'Rejected'], ['failed', 'Failed']]} />
         {payouts.length === 0 ? (
           <p className="rounded-lg border border-neutral-100 bg-white px-4 py-3 text-sm text-neutral-500">No payout requests yet.</p>
         ) : (
@@ -169,6 +176,17 @@ export default function DeliveryEarnings() {
         )}
         <Pagination meta={payoutMeta} onPageChange={loadPayouts} />
       </section>
+    </div>
+  )
+}
+
+function FilterControls({ filters, setFilters, searchPlaceholder, statuses }) {
+  return (
+    <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder={searchPlaceholder} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+      <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm">{statuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <input type="date" aria-label={`${searchPlaceholder} from date`} value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+      <input type="date" aria-label={`${searchPlaceholder} to date`} value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
     </div>
   )
 }

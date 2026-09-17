@@ -14,16 +14,17 @@ export default function MenuItems() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [filters, setFilters] = useState({ search: '', category_id: '', is_available: '', is_veg: '' })
 
   const load = (page = 1) =>
-    ownerService.menuItems({ page }).then(({ data }) => {
+    ownerService.menuItems({ page, ...filters }).then(({ data }) => {
       setItems(data.data)
       setMeta(data.meta)
     })
 
-  useEffect(() => {
-    load().finally(() => setLoading(false))
-  }, [])
+  useEffect(() => { load().finally(() => setLoading(false)) }, [filters])
+  useEffect(() => { ownerService.categories().then(({ data }) => setCategories(data.data)).catch(() => {}) }, [])
 
   const toggleAvailability = async (item) => {
     const formData = new FormData()
@@ -60,6 +61,13 @@ export default function MenuItems() {
             <Plus size={14} /> Add Item
           </Button>
         </div>
+      </div>
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <input value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} placeholder="Search menu" className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <select value={filters.category_id} onChange={(e) => setFilters((current) => ({ ...current, category_id: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+        <select value={filters.is_available} onChange={(e) => setFilters((current) => ({ ...current, is_available: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">Any availability</option><option value="1">Available</option><option value="0">Unavailable</option></select>
+        <select value={filters.is_veg} onChange={(e) => setFilters((current) => ({ ...current, is_veg: e.target.value }))} className="h-9 rounded-md border border-neutral-200 px-3 text-sm"><option value="">Any type</option><option value="1">Vegetarian</option><option value="0">Non-vegetarian</option></select>
       </div>
 
       {loading ? (

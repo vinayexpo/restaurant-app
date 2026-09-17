@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { motion } from 'framer-motion'
 import { Bell, BellOff, Check } from 'lucide-react'
@@ -56,19 +56,20 @@ export function NotificationsPanel({ title = 'Notifications', showPushControl = 
   const [notifications, setNotifications] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({ read_status: '', date_from: '', date_to: '' })
 
-  const load = (page = 1) =>
-    pushService.list(page).then(({ data }) => {
+  const load = useCallback((page = 1) =>
+    pushService.list({ page, ...filters }).then(({ data }) => {
       setNotifications(data.data)
       setMeta(data.meta)
-    })
+    }), [filters])
 
   useEffect(() => {
-    load()
+    load(1)
       .catch(() => toast.error('Could not load notifications.'))
       .finally(() => setLoading(false))
     dispatch(clearUnread())
-  }, [dispatch])
+  }, [dispatch, load])
 
   const markRead = async (id) => {
     await pushService.markRead(id)
@@ -92,6 +93,16 @@ export function NotificationsPanel({ title = 'Notifications', showPushControl = 
       </div>
 
       {showPushControl && <PushNotificationControl />}
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+        <select value={filters.read_status} onChange={(e) => setFilters((current) => ({ ...current, read_status: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700">
+          <option value="">All notifications</option>
+          <option value="unread">Unread</option>
+          <option value="read">Read</option>
+        </select>
+        <input type="date" aria-label="Notifications from date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+        <input type="date" aria-label="Notifications to date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700" />
+      </div>
 
       {loading ? (
         <div className="space-y-2">

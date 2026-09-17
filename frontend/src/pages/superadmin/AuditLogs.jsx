@@ -3,17 +3,20 @@ import { superadminService } from '../../services/superadminService'
 import { SkeletonListRow } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
 import { History } from 'lucide-react'
+import { Pagination } from '../../components/Pagination'
 
 export default function SuperadminAuditLogs() {
   const [logs, setLogs] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
   const [action, setAction] = useState('')
+  const [search, setSearch] = useState('')
+  const [target, setTarget] = useState('')
 
   const load = (page = 1) => {
     setLoading(true)
     superadminService
-      .auditLogs({ page, action: action || undefined })
+      .auditLogs({ page, action: action || undefined, search: search || undefined, target: target || undefined })
       .then(({ data }) => {
         setLogs(data.data)
         setMeta(data.meta)
@@ -25,18 +28,17 @@ export default function SuperadminAuditLogs() {
     const timer = setTimeout(() => load(1), 300)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action])
+  }, [action, search, target])
 
   return (
     <div>
       <h1 className="mb-4 text-lg font-bold text-neutral-900">Audit Logs</h1>
 
-      <input
-        value={action}
-        onChange={(e) => setAction(e.target.value)}
-        placeholder="Filter by action (e.g. restaurant.approve)"
-        className="mb-4 h-9 w-72 rounded-md border border-neutral-200 px-3 text-sm"
-      />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search action, actor, or target..." className="h-9 min-w-52 flex-1 rounded-md border border-neutral-200 px-3 text-sm" />
+        <input value={action} onChange={(e) => setAction(e.target.value)} placeholder="Filter by action..." className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+        <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Target type or ID..." className="h-9 rounded-md border border-neutral-200 px-3 text-sm" />
+      </div>
 
       {loading ? (
         <div className="space-y-2">
@@ -71,17 +73,7 @@ export default function SuperadminAuditLogs() {
         </div>
       )}
 
-      {meta.last_page > 1 && (
-        <div className="mt-4 flex justify-center gap-2">
-          <button disabled={meta.page <= 1} onClick={() => load(meta.page - 1)} className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Previous
-          </button>
-          <span className="flex items-center px-2 text-sm text-neutral-500">{meta.page} / {meta.last_page}</span>
-          <button disabled={meta.page >= meta.last_page} onClick={() => load(meta.page + 1)} className="rounded-md border border-neutral-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination meta={meta} onPageChange={load} />
     </div>
   )
 }

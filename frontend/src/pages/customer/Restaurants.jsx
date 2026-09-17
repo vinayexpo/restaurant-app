@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
@@ -6,6 +6,7 @@ import { restaurantService } from '../../services/restaurantService'
 import { RestaurantCard } from '../../components/RestaurantCard'
 import { SkeletonCard } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
+import { Pagination } from '../../components/Pagination'
 import { pageTransitionVariants } from '../../lib/motion'
 
 const CUISINES = ['Indian', 'Chinese', 'Pizza', 'Biryani', 'Burgers', 'Desserts', 'Italian', 'Mexican']
@@ -15,10 +16,8 @@ export default function Restaurants() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [restaurants, setRestaurants] = useState([])
-  const [page, setPage] = useState(1)
-  const [lastPage, setLastPage] = useState(1)
+  const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
 
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
@@ -29,9 +28,6 @@ export default function Restaurants() {
   const minRating = searchParams.get('min_rating') ?? ''
   const sort = searchParams.get('sort') ?? ''
 
-  const observerRef = useRef(null)
-  const sentinelRef = useRef(null)
-
   const updateFilter = (key, value) => {
     const next = new URLSearchParams(searchParams)
     if (value) next.set(key, value)
@@ -39,41 +35,22 @@ export default function Restaurants() {
     setSearchParams(next)
   }
 
-  const fetchPage = useCallback(
-    async (pageNum, replace = false) => {
-      const params = { page: pageNum }
-      if (cuisine) params.cuisine_type = cuisine
-      if (isVeg) params.is_veg = true
-      if (minRating) params.min_rating = minRating
-      if (sort) params.sort = sort
+  const fetchPage = useCallback(async (page = 1) => {
+    const params = { page }
+    if (cuisine) params.cuisine_type = cuisine
+    if (isVeg) params.is_veg = true
+    if (minRating) params.min_rating = minRating
+    if (sort) params.sort = sort
 
-      const { data } = await restaurantService.list(params)
-      setRestaurants((prev) => (replace ? data.data : [...prev, ...data.data]))
-      setLastPage(data.meta.last_page)
-      setPage(data.meta.page)
-    },
-    [cuisine, isVeg, minRating, sort]
-  )
+    const { data } = await restaurantService.list(params)
+    setRestaurants(data.data)
+    setMeta(data.meta)
+  }, [cuisine, isVeg, minRating, sort])
 
   useEffect(() => {
     setLoading(true)
-    fetchPage(1, true).finally(() => setLoading(false))
+    fetchPage(1).finally(() => setLoading(false))
   }, [fetchPage])
-
-  useEffect(() => {
-    if (!sentinelRef.current) return
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && page < lastPage && !loadingMore) {
-          setLoadingMore(true)
-          fetchPage(page + 1).finally(() => setLoadingMore(false))
-        }
-      },
-      { rootMargin: '200px' }
-    )
-    observerRef.current.observe(sentinelRef.current)
-    return () => observerRef.current?.disconnect()
-  }, [page, lastPage, loadingMore, fetchPage])
 
   useEffect(() => {
     if (query.length < 2) {
@@ -195,14 +172,7 @@ export default function Restaurants() {
               <RestaurantCard key={restaurant.id} restaurant={restaurant} />
             ))}
           </div>
-          <div ref={sentinelRef} className="h-10" />
-          {loadingMore && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
-          )}
+          <Pagination meta={meta} onPageChange={fetchPage} />
         </>
       )}
     </motion.div>

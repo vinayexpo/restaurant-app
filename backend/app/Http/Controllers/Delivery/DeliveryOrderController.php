@@ -24,6 +24,9 @@ class DeliveryOrderController extends Controller
 
     public function available(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'search' => 'nullable|string|max:100',
+        ]);
         $partner = DeliveryPartner::where('user_id', $request->user()->id)->firstOrFail();
 
         if (! $partner->is_available) {
@@ -33,6 +36,15 @@ class DeliveryOrderController extends Controller
         $query = Order::where('status', 'ready_for_pickup')
             ->whereNull('delivery_partner_id')
             ->with('restaurant:id,name,address,city,latitude,longitude');
+
+        if ($search = $filters['search'] ?? null) {
+            $query->where(function ($order) use ($search) {
+                $order->where('order_number', 'like', "%{$search}%")
+                    ->orWhereHas('restaurant', fn ($restaurant) => $restaurant
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('city', 'like', "%{$search}%"));
+            });
+        }
 
         if ($partner->current_latitude && $partner->current_longitude) {
             $query->join('restaurants', 'restaurants.id', '=', 'orders.restaurant_id')
@@ -45,7 +57,7 @@ class DeliveryOrderController extends Controller
             $query->latest();
         }
 
-        return $this->success($query->limit(20)->get());
+        return $this->paginated($query->paginate(15));
     }
 
     public function accept(Request $request, int $id): JsonResponse
@@ -121,9 +133,21 @@ class DeliveryOrderController extends Controller
 
     public function history(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'status' => 'nullable|string|in:delivered,cancelled',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
         $orders = Order::where('delivery_partner_id', $request->user()->id)
-            ->where('status', 'delivered')
+            ->where('status', $filters['status'] ?? 'delivered')
             ->with('restaurant:id,name')
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where(fn ($order) => $order->where('order_number', 'like', "%{$search}%")
+                    ->orWhereHas('restaurant', fn ($restaurant) => $restaurant->where('name', 'like', "%{$search}%")));
+            })
+            ->when($filters['date_from'] ?? null, fn ($query, $from) => $query->whereDate('delivered_at', '>=', $from))
+            ->when($filters['date_to'] ?? null, fn ($query, $to) => $query->whereDate('delivered_at', '<=', $to))
             ->latest()
             ->paginate(15);
 
@@ -132,10 +156,20 @@ class DeliveryOrderController extends Controller
 
     public function earnings(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'status' => 'nullable|string|in:pending,paid',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
         $partner = DeliveryPartner::where('user_id', $request->user()->id)->firstOrFail();
 
         $earnings = DeliveryEarning::where('delivery_partner_id', $partner->id)
             ->with('order:id,order_number,restaurant_id')
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->whereHas('order', fn ($order) => $order->where('order_number', 'like', "%{$search}%")))
+            ->when($filters['date_from'] ?? null, fn ($query, $from) => $query->whereDate('created_at', '>=', $from))
+            ->when($filters['date_to'] ?? null, fn ($query, $to) => $query->whereDate('created_at', '<=', $to))
             ->latest()
             ->paginate(15);
 

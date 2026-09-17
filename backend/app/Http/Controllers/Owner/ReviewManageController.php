@@ -17,12 +17,34 @@ class ReviewManageController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'rating' => 'nullable|integer|between:1,5',
+            'replied' => 'nullable|boolean',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
         $query = Review::where('restaurant_id', $request->get('restaurant')->id)
             ->with('user:id,name,profile_image')
             ->latest();
 
-        if ($rating = $request->query('rating')) {
+        if ($rating = $filters['rating'] ?? null) {
             $query->where('rating', $rating);
+        }
+        if (array_key_exists('replied', $filters)) {
+            $filters['replied'] ? $query->whereNotNull('owner_replied_at') : $query->whereNull('owner_replied_at');
+        }
+        if ($search = $filters['search'] ?? null) {
+            $query->where(function ($review) use ($search) {
+                $review->where('comment', 'like', "%{$search}%")
+                    ->orWhereHas('user', fn ($user) => $user->where('name', 'like', "%{$search}%"));
+            });
+        }
+        if ($from = $filters['date_from'] ?? null) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $filters['date_to'] ?? null) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         return $this->paginated($query->paginate(15));

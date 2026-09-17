@@ -10,6 +10,8 @@ use App\Models\Restaurant;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class FinancialsController extends Controller
 {
@@ -17,8 +19,7 @@ class FinancialsController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $from = $request->query('date_from', now()->subDays(30)->toDateString());
-        $to = $request->query('date_to', now()->toDateString());
+        [$from, $to] = $this->dateRange($request);
 
         $defaultCommissionPct = (float) PlatformSetting::get('default_commission_pct', 10);
         $overrides = PlatformCommission::pluck('rate_pct', 'restaurant_id');
@@ -70,5 +71,30 @@ class FinancialsController extends Controller
             'net_platform_revenue' => $netRevenue,
             'by_restaurant' => $commissionByRestaurant,
         ]);
+    }
+
+    private function dateRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => 'nullable|date_format:Y-m-d',
+            'date_to' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $from = Carbon::parse($validated['date_from'] ?? now()->subDays(30)->toDateString())->startOfDay();
+        $to = Carbon::parse($validated['date_to'] ?? now()->toDateString())->endOfDay();
+
+        if ($to->lt($from)) {
+            throw ValidationException::withMessages([
+                'date_to' => 'The end date must not be before the start date.',
+            ]);
+        }
+
+        if ($from->diffInDays($to) > 366) {
+            throw ValidationException::withMessages([
+                'date_to' => 'The financial reporting date range may not exceed 366 days.',
+            ]);
+        }
+
+        return [$from->toDateString(), $to->toDateString()];
     }
 }

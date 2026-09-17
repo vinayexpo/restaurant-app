@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { UtensilsCrossed, Star } from 'lucide-react'
+import { UtensilsCrossed, Star, Search } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
@@ -19,13 +19,14 @@ export default function AdminRestaurants() {
   const [restaurants, setRestaurants] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
 
   const load = (page = 1) => {
     setLoading(true)
     adminService
-      .restaurants({ status: tab, page })
+      .restaurants({ status: tab, search: search || undefined, page })
       .then(({ data }) => {
         setRestaurants(data.data)
         setMeta(data.meta)
@@ -33,7 +34,11 @@ export default function AdminRestaurants() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => load(1), [tab])
+  useEffect(() => {
+    const timer = setTimeout(() => load(1), search ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, search])
 
   const approve = async (id) => {
     try {
@@ -83,6 +88,11 @@ export default function AdminRestaurants() {
             {label}
           </button>
         ))}
+      </div>
+
+      <div className="relative mb-4 max-w-md">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search restaurant, owner, or email..." className="h-9 w-full rounded-md border border-neutral-200 pl-9 pr-3 text-sm" />
       </div>
 
       {loading ? (

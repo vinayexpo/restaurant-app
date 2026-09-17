@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Customer;
 
+use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
-use App\Events\OrderStatusChanged;
 use App\Services\NotificationService;
 use App\Services\PaymentService;
 use App\Traits\ApiResponse;
@@ -24,9 +24,18 @@ class OrderController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'status' => 'nullable|in:pending,confirmed,preparing,ready_for_pickup,picked_up,on_the_way,delivered,cancelled',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
         $orders = Order::where('user_id', $request->user()->id)
             ->with('restaurant:id,name,logo,slug')
             ->withExists('review')
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
             ->latest()
             ->paginate(15);
 

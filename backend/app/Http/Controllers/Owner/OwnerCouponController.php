@@ -14,7 +14,21 @@ class OwnerCouponController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filters = $request->validate([
+            'code' => 'nullable|string|max:50',
+            'active' => 'nullable|boolean',
+            'validity' => 'nullable|string|in:current,upcoming,expired',
+        ]);
         $coupons = Coupon::where('restaurant_id', $request->get('restaurant')->id)
+            ->when($filters['code'] ?? null, fn ($query, $code) => $query->where('code', 'like', "%{$code}%"))
+            ->when(array_key_exists('active', $filters), fn ($query) => $query->where('is_active', $filters['active']))
+            ->when($filters['validity'] ?? null, function ($query, $validity) {
+                match ($validity) {
+                    'current' => $query->where('valid_from', '<=', now())->where('valid_until', '>=', now()),
+                    'upcoming' => $query->where('valid_from', '>', now()),
+                    'expired' => $query->where('valid_until', '<', now()),
+                };
+            })
             ->latest()
             ->paginate(15);
 
