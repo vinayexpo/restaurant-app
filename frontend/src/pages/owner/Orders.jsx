@@ -82,6 +82,12 @@ export default function OwnerOrders() {
     }
   }
 
+  const reject = (order) => {
+    if (window.confirm(`Reject order ${order.order_number}? The customer will be notified.`)) {
+      advance(order, 'cancelled')
+    }
+  }
+
   const currentTab = TABS.find((t) => t.key === activeTab)
 
   return (
@@ -132,14 +138,20 @@ export default function OwnerOrders() {
                 {order.items?.map((i) => `${i.quantity}× ${i.menu_item_name}`).join(', ')}
               </p>
               {currentTab?.next && (
-                <Button
-                  size="sm"
-                  className="mt-3"
-                  loading={advancingId === order.id}
-                  onClick={() => advance(order, currentTab.next)}
-                >
-                  {currentTab.nextLabel}
-                </Button>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    loading={advancingId === order.id}
+                    onClick={() => advance(order, currentTab.next)}
+                  >
+                    {currentTab.nextLabel}
+                  </Button>
+                  {currentTab.key === 'pending' && (
+                    <Button size="sm" variant="danger" loading={advancingId === order.id} onClick={() => reject(order)}>
+                      Reject
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           ))}
