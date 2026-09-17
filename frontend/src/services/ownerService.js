@@ -30,6 +30,7 @@ export const ownerService = {
   orderStatusCounts: () => api.get('/owner/orders/status-counts'),
   order: (id) => api.get(`/owner/orders/${id}`),
   updateOrderStatus: (id, payload) => api.patch(`/owner/orders/${id}/status`, payload),
+  refundOrder: (id) => api.post(`/owner/orders/${id}/refund`),
 
   reviews: (params) => api.get('/owner/reviews', { params }),
   replyReview: (id, owner_reply) => api.patch(`/owner/reviews/${id}/reply`, { owner_reply }),

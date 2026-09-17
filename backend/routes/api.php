@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::get('/orders', [OrderManageController::class, 'index']);
             Route::get('/orders/status-counts', [OrderManageController::class, 'statusCounts']);
+            Route::post('/orders/{id}/refund', [OrderManageController::class, 'refund']);
             Route::get('/orders/{id}', [OrderManageController::class, 'show']);
             Route::patch('/orders/{id}/status', [OrderManageController::class, 'updateStatus']);
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\OrderService;
+use App\Services\PaymentService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,10 @@ class OrderManageController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private OrderService $orderService) {}
+    public function __construct(
+        private OrderService $orderService,
+        private PaymentService $paymentService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -80,8 +84,57 @@ class OrderManageController extends Controller
             'note' => 'nullable|string|max:255',
         ]);
 
+        if ($validated['status'] === 'cancelled' && ! in_array($order->status, ['pending', 'confirmed'], true)) {
+            return $this->error('Only pending or confirmed orders can be cancelled.', [], 422);
+        }
+
+        $message = 'Order status updated.';
+
+        if ($validated['status'] === 'cancelled') {
+            $wasPaidOnline = $order->payment_method === 'razorpay' && $order->payment_status === 'paid';
+
+            if ($wasPaidOnline) {
+                $this->refundPaidOrder($order);
+            }
+
+            $order->update([
+                'cancelled_at' => now(),
+                'cancel_reason' => $validated['note'] ?? null,
+            ]);
+            $message = $wasPaidOnline
+                ? 'Order cancelled and payment refunded.'
+                : 'Order cancelled.';
+        }
+
         $this->orderService->updateStatus($order, $validated['status'], $request->user(), $validated['note'] ?? null);
 
-        return $this->success($order->fresh(), 'Order status updated.');
+        return $this->success($order->fresh(), $message);
+    }
+
+    public function refund(Request $request, int $id): JsonResponse
+    {
+        $order = Order::where('restaurant_id', $request->get('restaurant')->id)->findOrFail($id);
+
+        if ($order->status !== 'cancelled') {
+            return $this->error('Only cancelled orders can be refunded.', [], 422);
+        }
+
+        $this->refundPaidOrder($order);
+
+        return $this->success($order->fresh(), 'Payment refunded successfully.');
+    }
+
+    private function refundPaidOrder(Order $order): void
+    {
+        if ($order->payment_status === 'refunded') {
+            return;
+        }
+
+        if ($order->payment_method !== 'razorpay' || $order->payment_status !== 'paid' || ! $order->razorpay_payment_id) {
+            abort(422, 'This order does not have a refundable online payment.');
+        }
+
+        $this->paymentService->refundRazorpay($order->razorpay_payment_id, (float) $order->total_amount);
+        $order->update(['payment_status' => 'refunded']);
     }
 }

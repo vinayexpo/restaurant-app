@@ -37,6 +37,7 @@ export default function OwnerOrders() {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [advancingId, setAdvancingId] = useState(null)
+  const [refundingId, setRefundingId] = useState(null)
   const [filters, setFilters] = useState({ search: '', customer: '', payment_method: '', date_from: '', date_to: '' })
 
   const load = (page = 1) => {
@@ -86,6 +87,21 @@ export default function OwnerOrders() {
   const reject = (order) => {
     if (window.confirm(`Reject order ${order.order_number}? The customer will be notified.`)) {
       advance(order, 'cancelled')
+    }
+  }
+
+  const refund = async (order) => {
+    if (!window.confirm(`Refund ₹${Number(order.total_amount).toFixed(2)} to the customer? This cannot be undone.`)) return
+
+    setRefundingId(order.id)
+    try {
+      await ownerService.refundOrder(order.id)
+      toast.success('Payment refunded successfully.')
+      load()
+    } catch (error) {
+      toast.error(error.response?.data?.message ?? 'Could not issue refund.')
+    } finally {
+      setRefundingId(null)
     }
   }
 
@@ -163,6 +179,11 @@ export default function OwnerOrders() {
                     </Button>
                   )}
                 </div>
+              )}
+              {currentTab?.key === 'cancelled' && order.payment_method === 'razorpay' && order.payment_status === 'paid' && (
+                <Button size="sm" variant="danger" className="mt-3" loading={refundingId === order.id} onClick={() => refund(order)}>
+                  Refund ₹{Number(order.total_amount).toFixed(2)}
+                </Button>
               )}
             </div>
           ))}
