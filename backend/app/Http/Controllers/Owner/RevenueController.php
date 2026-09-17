@@ -29,7 +29,7 @@ class RevenueController extends Controller
 
         $breakdown = Order::where('restaurant_id', $restaurant->id)
             ->where('status', 'delivered')
-            ->selectRaw("DATE_FORMAT(created_at, '{$dateFormat}') as period, SUM(subtotal) as revenue, COUNT(*) as order_count")
+            ->selectRaw("DATE_FORMAT(created_at, '{$dateFormat}') as period, SUM(total_amount) as revenue, COUNT(*) as order_count")
             ->groupBy('period')
             ->orderBy('period')
             ->get();
@@ -37,7 +37,7 @@ class RevenueController extends Controller
         $commissionRow = PlatformCommission::where('restaurant_id', $restaurant->id)->first();
         $commissionPct = $commissionRow ? (float) $commissionRow->rate_pct : (float) PlatformSetting::get('default_commission_pct', 10);
 
-        $totalRevenue = (float) Order::where('restaurant_id', $restaurant->id)->where('status', 'delivered')->sum('subtotal');
+        $totalRevenue = (float) Order::where('restaurant_id', $restaurant->id)->where('status', 'delivered')->sum('total_amount');
         $commissionDeducted = round($totalRevenue * $commissionPct / 100, 2);
 
         $topItems = OrderItem::join('orders', 'orders.id', '=', 'order_items.order_id')

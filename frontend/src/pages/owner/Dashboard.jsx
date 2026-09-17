@@ -50,7 +50,7 @@ export default function OwnerDashboard() {
 
   const stats = [
     { label: "Today's Orders", value: todayEntry?.order_count ?? 0, icon: ClipboardList },
-    { label: "Today's Revenue", value: `₹${Number(todayEntry?.revenue ?? 0).toFixed(0)}`, icon: IndianRupee },
+    { label: "Today's Revenue", value: `₹${Number(todayEntry?.revenue ?? 0).toFixed(2)}`, icon: IndianRupee },
     { label: 'Pending Orders', value: pendingCount, icon: Clock },
     { label: 'Avg Rating', value: Number(restaurant?.avg_rating ?? 0).toFixed(1), icon: Star },
   ]
