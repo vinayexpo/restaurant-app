@@ -22,8 +22,19 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const orderId = event.notification.data?.order_id
-  const url = orderId ? `/orders/${orderId}` : '/'
+  const data = event.notification.data ?? {}
+  const destination = data.url ?? data.path
+  const orderId = data.order_id
+  let url = orderId ? `/orders/${orderId}` : '/'
+
+  if (typeof destination === 'string') {
+    try {
+      const parsed = new URL(destination, self.location.origin)
+      if (parsed.origin === self.location.origin) url = `${parsed.pathname}${parsed.search}${parsed.hash}`
+    } catch {
+      // Use the safe order/home fallback for malformed notification data.
+    }
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

@@ -43,6 +43,37 @@ export function disconnectEcho() {
   echoInstance = null
 }
 
+/**
+ * Keep channel setup consistent and refresh REST-backed views after a socket
+ * reconnect, because broadcasts sent while offline cannot be replayed.
+ */
+export function subscribeToRealtimeChannel(channelName, listeners, { onReconnect, onError } = {}) {
+  try {
+    const echo = getEcho()
+    const channel = echo.private(channelName)
+    const connection = echo.connector?.pusher?.connection
+    const refresh = () => onReconnect?.()
+    const reportError = (error) => onError?.(error)
+
+    Object.entries(listeners).forEach(([event, listener]) => channel.listen(event, listener))
+    connection?.bind('connected', refresh)
+    connection?.bind('error', reportError)
+    connection?.bind('failed', reportError)
+    connection?.bind('unavailable', reportError)
+
+    return () => {
+      connection?.unbind('connected', refresh)
+      connection?.unbind('error', reportError)
+      connection?.unbind('failed', reportError)
+      connection?.unbind('unavailable', reportError)
+      echo.leave(channelName)
+    }
+  } catch (error) {
+    onError?.(error)
+    return () => {}
+  }
+}
+
 // Reconnect the authorizer whenever the auth token changes (login/logout).
 store.subscribe(() => {
   const { isAuthenticated } = store.getState().auth

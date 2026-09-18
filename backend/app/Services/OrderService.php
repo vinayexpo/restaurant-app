@@ -18,6 +18,7 @@ use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class OrderService
 {
@@ -156,7 +157,7 @@ class OrderService
                 $owner,
                 'new_order',
                 "New Order — {$order->order_number}",
-                "New order of ₹".number_format((float) $order->total_amount, 2).' received.',
+                'New order of ₹'.number_format((float) $order->total_amount, 2).' received.',
                 ['order_id' => $order->id, 'status' => $order->status]
             );
         }
@@ -164,25 +165,84 @@ class OrderService
         return $order;
     }
 
-    public function updateStatus(Order $order, string $newStatus, User $changedBy, ?string $note = null): void
+    /** @return array{total_amount: float, subtotal: float, delivery_fee: float, discount_amount: float, loyalty_discount_amount: float, loyalty_points_redeemed: int, tax_amount: float} */
+    public function quoteFromCart(Request $request): array
     {
-        $order->update(['status' => $newStatus]);
+        $user = $request->user();
+        $cart = Cart::where('user_id', $user->id)->with('items')->firstOrFail();
 
-        OrderStatusHistory::create([
-            'order_id' => $order->id,
-            'status' => $newStatus,
-            'changed_by' => $changedBy->id,
-            'note' => $note,
-        ]);
+        if ($cart->items->isEmpty()) {
+            abort(422, 'Cart is empty.');
+        }
+
+        $restaurant = Restaurant::findOrFail($cart->restaurant_id);
+        $subtotal = (float) $cart->items->sum(fn ($item) => $item->unit_price * $item->quantity);
+
+        if ($subtotal < $restaurant->min_order_amount) {
+            abort(422, "Minimum order amount is ₹{$restaurant->min_order_amount}.");
+        }
+
+        $coupon = null;
+        $discountAmount = 0;
+        if ($request->coupon_code) {
+            $coupon = $this->validateCoupon($request->coupon_code, $user, $restaurant, $subtotal);
+            $discountAmount = $coupon->type === 'percentage'
+                ? min($subtotal * $coupon->value / 100, $coupon->max_discount ?? PHP_INT_MAX)
+                : min((float) $coupon->value, $subtotal);
+            $discountAmount = round($discountAmount, 2);
+        }
+
+        $loyaltyDiscount = 0;
+        $loyaltyPointsRedeemed = 0;
+        if (! $coupon && $request->loyalty_points > 0) {
+            [$loyaltyDiscount, $loyaltyPointsRedeemed] = $this->loyaltyService->calculateRedemption(
+                $user, (int) $request->loyalty_points, $subtotal
+            );
+        }
+
+        $taxableAmount = max(0, $subtotal - $discountAmount - $loyaltyDiscount);
+        $taxAmount = round($taxableAmount * (float) PlatformSetting::get('tax_rate_pct', 5) / 100, 2);
+
+        return [
+            'subtotal' => $subtotal,
+            'delivery_fee' => (float) $restaurant->delivery_fee,
+            'discount_amount' => $discountAmount,
+            'loyalty_discount_amount' => $loyaltyDiscount,
+            'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
+            'tax_amount' => $taxAmount,
+            'total_amount' => round($taxableAmount + (float) $restaurant->delivery_fee + $taxAmount, 2),
+        ];
+    }
+
+    public function updateStatus(Order $order, string $newStatus, User $changedBy, ?string $note = null): Order
+    {
+        $order = DB::transaction(function () use ($order, $newStatus, $changedBy, $note) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $this->ensureValidTransition($order, $newStatus);
+
+            $attributes = ['status' => $newStatus];
+            if ($newStatus === 'delivered') {
+                $attributes['delivered_at'] = now();
+            }
+            $order->update($attributes);
+
+            OrderStatusHistory::create([
+                'order_id' => $order->id,
+                'status' => $newStatus,
+                'changed_by' => $changedBy->id,
+                'note' => $note,
+            ]);
+
+            if ($newStatus === 'delivered') {
+                $this->loyaltyService->credit($order);
+                $this->earningsService->recordDeliveryEarning($order);
+            }
+
+            return $order->fresh();
+        });
 
         broadcast(new OrderStatusChanged($order));
         SendOrderStatusEmail::dispatch($order);
-
-        if ($newStatus === 'delivered') {
-            $order->update(['delivered_at' => now()]);
-            $this->loyaltyService->credit($order);
-            $this->earningsService->recordDeliveryEarning($order);
-        }
 
         if ($message = self::STATUS_MESSAGES[$newStatus] ?? null) {
             $restaurantName = $order->restaurant?->name ?? 'The restaurant';
@@ -196,6 +256,17 @@ class OrderService
                 "{$message['title']} — {$order->order_number}",
                 $body,
                 ['order_id' => $order->id, 'status' => $newStatus]
+            );
+        }
+
+        return $order;
+    }
+
+    public function ensureValidTransition(Order $order, string $newStatus): void
+    {
+        if (! $order->canTransitionTo($newStatus)) {
+            throw new UnprocessableEntityHttpException(
+                "Order cannot transition from {$order->status} to {$newStatus}."
             );
         }
     }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Bell, BellOff, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -53,6 +54,7 @@ function PushNotificationControl() {
 
 export function NotificationsPanel({ title = 'Notifications', showPushControl = false }) {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
@@ -71,6 +73,12 @@ export function NotificationsPanel({ title = 'Notifications', showPushControl = 
     dispatch(clearUnread())
   }, [dispatch, load])
 
+  useEffect(() => {
+    const refresh = () => load(1).catch(() => {})
+    window.addEventListener('restaurantapp:notification', refresh)
+    return () => window.removeEventListener('restaurantapp:notification', refresh)
+  }, [load])
+
   const markRead = async (id) => {
     await pushService.markRead(id)
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)))
@@ -79,6 +87,12 @@ export function NotificationsPanel({ title = 'Notifications', showPushControl = 
   const markAllRead = async () => {
     await pushService.markAllRead()
     setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })))
+  }
+
+  const openNotification = async (notification) => {
+    if (!notification.read_at) await markRead(notification.id)
+    const path = notification.data?.url ?? notification.data?.path
+    if (typeof path === 'string' && path.startsWith('/')) navigate(path)
   }
 
   return (
@@ -118,7 +132,7 @@ export function NotificationsPanel({ title = 'Notifications', showPushControl = 
             {notifications.map((n) => (
               <button
                 key={n.id}
-                onClick={() => !n.read_at && markRead(n.id)}
+                onClick={() => openNotification(n)}
                 className={`w-full rounded-lg border p-3.5 text-left ${n.read_at ? 'border-neutral-100 bg-white' : 'border-brand-200 bg-brand-50/50'}`}
               >
                 <p className="text-sm font-semibold text-neutral-900">{n.title}</p>

@@ -30,11 +30,24 @@ class ReportController extends Controller
             ->selectRaw('SUM(subtotal) as gross_order_volume, SUM(total_amount) as total_amount, SUM(delivery_fee) as delivery_revenue, COUNT(*) as order_count')
             ->first();
 
+        // Refund timestamps are not stored separately, so updated_at is the existing record of the refund event.
+        $refunds = Order::where('payment_status', 'refunded')
+            ->whereBetween('updated_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->selectRaw('SUM(total_amount) as total_amount, COUNT(*) as order_count')
+            ->first();
+
+        $cancellations = Order::where('status', 'cancelled')
+            ->whereBetween('cancelled_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->selectRaw('SUM(total_amount) as total_amount, COUNT(*) as order_count')
+            ->first();
+
         return $this->success([
             'date_from' => $from,
             'date_to' => $to,
             'breakdown' => $breakdown,
             'totals' => $totals,
+            'refunds' => $refunds,
+            'cancellations' => $cancellations,
         ]);
     }
 

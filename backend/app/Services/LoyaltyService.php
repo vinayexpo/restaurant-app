@@ -69,6 +69,27 @@ class LoyaltyService
         });
     }
 
+    public function restoreRedemption(Order $order): void
+    {
+        $points = (int) $order->loyalty_points_redeemed;
+
+        if ($points === 0 || LoyaltyTransaction::where('order_id', $order->id)->where('type', 'adjusted')->exists()) {
+            return;
+        }
+
+        $loyaltyPoint = $this->pointsFor($order->user);
+        $loyaltyPoint->increment('balance', $points);
+
+        LoyaltyTransaction::create([
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'type' => 'adjusted',
+            'points' => $points,
+            'balance_after' => $loyaltyPoint->fresh()->balance,
+            'description' => "Restored after refund for order #{$order->order_number}",
+        ]);
+    }
+
     /**
      * @return array{0: float, 1: int} [discountAmount, pointsRedeemed]
      */

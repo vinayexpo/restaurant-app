@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Bike, MapPin } from 'lucide-react'
@@ -17,7 +17,7 @@ export default function DeliveryOrders() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
-  const load = (requestedPage = page) => {
+  const load = useCallback((requestedPage = page) => {
     deliveryService
       .availableOrders({ page: requestedPage, search })
       .then(({ data }) => {
@@ -25,13 +25,23 @@ export default function DeliveryOrders() {
         setMeta(data.meta)
       })
       .finally(() => setLoading(false))
-  }
+  }, [page, search])
 
   useEffect(() => {
     load(page)
-    const interval = setInterval(load, 30000)
+    const interval = setInterval(() => load(), 30000)
     return () => clearInterval(interval)
-  }, [page, search])
+  }, [load, page])
+
+  useEffect(() => {
+    const refresh = () => load(page)
+    window.addEventListener('restaurantapp:notification', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.removeEventListener('restaurantapp:notification', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [load, page])
 
   const updateSearch = (value) => {
     setPage(1)

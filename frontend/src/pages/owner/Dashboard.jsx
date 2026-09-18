@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { ClipboardList, IndianRupee, Star, Clock } from 'lucide-react'
 import { ownerService } from '../../services/ownerService'
 import { SkeletonStat } from '../../components/Skeleton'
-import { getEcho } from '../../lib/echo'
+import { subscribeToRealtimeChannel } from '../../lib/echo'
 
 export default function OwnerDashboard() {
   const restaurant = useSelector((state) => state.owner.restaurant)
@@ -15,7 +15,7 @@ export default function OwnerDashboard() {
   const [liveOrders, setLiveOrders] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     Promise.all([ownerService.orders({ status: 'pending' }), ownerService.revenue({ period: 'daily' }), ownerService.reviews()])
       .then(([ordersRes, revenueRes, reviewsRes]) => {
         setPendingCount(ordersRes.data.meta.total)
@@ -25,15 +25,18 @@ export default function OwnerDashboard() {
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => { load() }, [load])
+
   useEffect(() => {
     if (!restaurant?.id) return
-    const echo = getEcho()
-    const channel = echo.private(`restaurant.${restaurant.id}.orders`)
-    channel.listen('.order.new', (payload) => {
-      setLiveOrders((prev) => [payload, ...prev].slice(0, 5))
-    })
-    return () => echo.leave(`restaurant.${restaurant.id}.orders`)
-  }, [restaurant?.id])
+    return subscribeToRealtimeChannel(`restaurant.${restaurant.id}.orders`, {
+      '.order.new': (payload) => {
+        setLiveOrders((prev) => [payload, ...prev].slice(0, 5))
+        load()
+      },
+      '.order.status.changed': load,
+    }, { onReconnect: load })
+  }, [restaurant?.id, load])
 
   const today = new Date().toISOString().slice(0, 10)
   const todayEntry = revenue?.breakdown?.find((b) => b.period === today)

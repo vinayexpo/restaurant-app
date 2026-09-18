@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { pushService } from '../services/pushService'
-import { getEcho } from '../lib/echo'
+import { subscribeToRealtimeChannel } from '../lib/echo'
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -79,26 +79,19 @@ export function usePushNotifications() {
  * Returns a cleanup function. Used by every role layout so owner / delivery /
  * admin panels get the same live behaviour as the customer layout.
  */
-export function subscribeToUserNotifications(userId, { onNotification } = {}) {
+export function subscribeToUserNotifications(userId, { onNotification, onReconnect } = {}) {
   if (!userId) return () => {}
 
-  let channelName = null
-  try {
-    const echo = getEcho()
-    channelName = `App.Models.User.${userId}`
-    const channel = echo.private(channelName)
-    channel.listen('.notification.created', (notification) => {
-      onNotification?.(notification)
-    })
-  } catch {
-    return () => {}
-  }
-
-  return () => {
-    try {
-      getEcho().leave(channelName)
-    } catch {
-      // Ignore teardown errors during logout / unmount.
+  return subscribeToRealtimeChannel(
+    `App.Models.User.${userId}`,
+    {
+      '.notification.created': (notification) => {
+        onNotification?.(notification)
+        window.dispatchEvent(new CustomEvent('restaurantapp:notification', { detail: notification }))
+      },
+    },
+    {
+      onReconnect,
     }
-  }
+  )
 }

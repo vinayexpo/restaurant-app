@@ -6,6 +6,6 @@ export const orderService = {
   cancel: (id, reason) => api.patch(`/orders/${id}/cancel`, { reason }),
   reorder: (id) => api.post(`/orders/${id}/reorder`),
   rateDelivery: (id, payload) => api.post(`/orders/${id}/rate-delivery`, payload),
-  paymentInitiate: (amount) => api.post('/payment/initiate', { amount }),
+  paymentInitiate: (payload) => api.post('/payment/initiate', payload),
   paymentVerify: (payload) => api.post('/payment/verify', payload),
 }

@@ -9,7 +9,7 @@ import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { LiveMap } from '../../components/LiveMap'
-import { getEcho } from '../../lib/echo'
+import { subscribeToRealtimeChannel } from '../../lib/echo'
 import { pageTransitionVariants } from '../../lib/motion'
 
 const LIVE_TRACKING_STATUSES = ['picked_up', 'on_the_way']
@@ -33,6 +33,9 @@ export default function OrderTracking() {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [rated, setRated] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
 
   const [showReviewModal, setShowReviewModal] = useState(searchParams.get('review') === '1')
   const [reviewRating, setReviewRating] = useState(5)
@@ -44,19 +47,15 @@ export default function OrderTracking() {
   useEffect(() => {
     load().finally(() => setLoading(false))
 
-    const echo = getEcho()
-    const channel = echo.private(`orders.${id}`)
-    channel.listen('.order.status.changed', () => {
-      load()
-      toast.success('Order status updated!')
-    })
-    channel.listen('.delivery.location.updated', (e) => {
-      setRiderPosition([e.latitude, e.longitude])
-    })
-
-    return () => {
-      echo.leave(`orders.${id}`)
-    }
+    return subscribeToRealtimeChannel(`orders.${id}`, {
+      '.order.status.changed': () => {
+        load()
+        toast.success('Order status updated!')
+      },
+      '.delivery.location.updated': (e) => {
+        setRiderPosition([e.latitude, e.longitude])
+      },
+    }, { onReconnect: load })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -86,6 +85,25 @@ export default function OrderTracking() {
       toast.success('Thanks for your review!')
     } catch (error) {
       toast.error(error.response?.data?.message ?? 'Could not submit review.')
+    }
+  }
+
+  const cancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      toast.error('A cancellation reason is required.')
+      return
+    }
+
+    setCancelling(true)
+    try {
+      const { data } = await orderService.cancel(id, cancelReason.trim())
+      setOrder(data.data)
+      setShowCancelModal(false)
+      toast.success('Order cancelled.')
+    } catch (error) {
+      toast.error(error.response?.data?.message ?? 'Could not cancel order.')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -216,6 +234,12 @@ export default function OrderTracking() {
         </div>
       )}
 
+      {['pending', 'confirmed'].includes(order.status) && (
+        <Button variant="danger" className="mt-4 w-full" onClick={() => setShowCancelModal(true)}>
+          Cancel Order
+        </Button>
+      )}
+
       <Modal open={showRateModal} onClose={() => setShowRateModal(false)} title="Rate Your Delivery">
         <div className="mb-4 flex justify-center gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -257,6 +281,20 @@ export default function OrderTracking() {
         />
         <Button className="mt-3 w-full" onClick={submitReview}>
           Submit Review
+        </Button>
+      </Modal>
+
+      <Modal open={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancel Order">
+        <p className="text-sm text-neutral-600">Tell the restaurant why you need to cancel this order.</p>
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="Cancellation reason"
+          rows={3}
+          className="mt-3 w-full rounded-md border border-neutral-200 p-3 text-sm focus:border-brand-500 focus:outline-none"
+        />
+        <Button variant="danger" className="mt-3 w-full" loading={cancelling} onClick={cancelOrder}>
+          Confirm Cancellation
         </Button>
       </Modal>
     </motion.div>

@@ -33,6 +33,12 @@ export function CustomerLayout() {
         dispatch(incrementUnread())
         toast(notification.title, { icon: '🔔' })
       },
+      onReconnect: () => {
+        pushService
+          .unreadCount()
+          .then(({ data }) => dispatch(setUnreadCount(data.data.unread_count)))
+          .catch(() => {})
+      },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id])

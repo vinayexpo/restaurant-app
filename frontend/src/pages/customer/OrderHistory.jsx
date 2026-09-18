@@ -34,6 +34,12 @@ export default function OrderHistory() {
     load(1)
   }, [load])
 
+  useEffect(() => {
+    const refresh = () => load(1)
+    window.addEventListener('restaurantapp:notification', refresh)
+    return () => window.removeEventListener('restaurantapp:notification', refresh)
+  }, [load])
+
   const handleReorder = async (id) => {
     setReorderingId(id)
     try {

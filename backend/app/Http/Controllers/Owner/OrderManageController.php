@@ -81,11 +81,12 @@ class OrderManageController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(['confirmed', 'preparing', 'ready_for_pickup', 'cancelled'])],
+            'reason' => 'required_if:status,cancelled|nullable|string|max:255',
             'note' => 'nullable|string|max:255',
         ]);
 
-        if ($validated['status'] === 'cancelled' && ! in_array($order->status, ['pending', 'confirmed'], true)) {
-            return $this->error('Only pending or confirmed orders can be cancelled.', [], 422);
+        if (! $order->canTransitionTo($validated['status'])) {
+            return $this->error("Order cannot transition from {$order->status} to {$validated['status']}.", [], 422);
         }
 
         $message = 'Order status updated.';
@@ -99,14 +100,16 @@ class OrderManageController extends Controller
 
             $order->update([
                 'cancelled_at' => now(),
-                'cancel_reason' => $validated['note'] ?? null,
+                'cancel_reason' => $validated['reason'],
             ]);
+            $this->paymentService->restoreOrderBenefits($order);
             $message = $wasPaidOnline
                 ? 'Order cancelled and payment refunded.'
                 : 'Order cancelled.';
         }
 
-        $this->orderService->updateStatus($order, $validated['status'], $request->user(), $validated['note'] ?? null);
+        $note = $validated['status'] === 'cancelled' ? $validated['reason'] : ($validated['note'] ?? null);
+        $this->orderService->updateStatus($order, $validated['status'], $request->user(), $note);
 
         return $this->success($order->fresh(), $message);
     }
@@ -119,12 +122,18 @@ class OrderManageController extends Controller
             return $this->error('Only cancelled orders can be refunded.', [], 422);
         }
 
-        $this->refundPaidOrder($order);
+        $validated = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01',
+            'reason' => 'nullable|string|max:255',
+        ]);
+        $amount = (float) ($validated['amount'] ?? $order->total_amount);
+        $idempotencyKey = $request->header('Idempotency-Key', "owner-refund:{$order->id}:".number_format($amount, 2, '.', ''));
+        $this->refundPaidOrder($order, $amount, $idempotencyKey, $request->user()->id, $validated['reason'] ?? null);
 
-        return $this->success($order->fresh(), 'Payment refunded successfully.');
+        return $this->success($order->fresh()->load('refunds'), 'Refund request submitted successfully.');
     }
 
-    private function refundPaidOrder(Order $order): void
+    private function refundPaidOrder(Order $order, ?float $amount = null, ?string $idempotencyKey = null, ?int $requestedBy = null, ?string $reason = null): void
     {
         if ($order->payment_status === 'refunded') {
             return;
@@ -134,7 +143,12 @@ class OrderManageController extends Controller
             abort(422, 'This order does not have a refundable online payment.');
         }
 
-        $this->paymentService->refundRazorpay($order->razorpay_payment_id, (float) $order->total_amount);
-        $order->update(['payment_status' => 'refunded']);
+        $this->paymentService->requestRefund(
+            $order,
+            $amount ?? (float) $order->total_amount,
+            $idempotencyKey ?? "owner-cancellation:{$order->id}",
+            $requestedBy,
+            $reason,
+        );
     }
 }

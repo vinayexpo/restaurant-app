@@ -3,18 +3,22 @@ import { superadminService } from '../../services/superadminService'
 import { Input } from '../../components/Input'
 import { Button } from '../../components/Button'
 import { SkeletonStat } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 
 export default function SuperadminFinancials() {
   const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0, 10))
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const load = () => {
     setLoading(true)
+    setError('')
     superadminService
       .financials({ date_from: dateFrom, date_to: dateTo })
       .then(({ data }) => setData(data.data))
+      .catch(() => setError('Financial reporting is temporarily unavailable.'))
       .finally(() => setLoading(false))
   }
 
@@ -37,13 +41,18 @@ export default function SuperadminFinancials() {
             <SkeletonStat key={i} />
           ))}
         </div>
-      ) : (
+      ) : error ? (
+        <EmptyState title="Could not load financials" description={error} action={<Button size="sm" variant="secondary" onClick={load}>Retry</Button>} />
+      ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
             <StatCard label="Gross Order Value" value={data.gross_order_value} />
             <StatCard label="Platform Commission" value={data.platform_commission} />
             <StatCard label="Delivery Revenue" value={data.delivery_revenue} />
             <StatCard label="Refunds Issued" value={data.refunds_issued} negative />
+            <StatCard label="Refunded Orders" value={data.refunded_order_count} negative count />
+            <StatCard label="Cancelled Orders" value={data.cancelled_order_count} negative count />
+            <StatCard label="Cancelled Value" value={data.cancelled_order_value} negative />
             <StatCard label="Net Platform Revenue" value={data.net_platform_revenue} highlight />
           </div>
 
@@ -75,17 +84,17 @@ export default function SuperadminFinancials() {
             )}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }
 
-function StatCard({ label, value, highlight, negative }) {
+function StatCard({ label, value, highlight, negative, count }) {
   return (
     <div className={`rounded-lg border p-4 ${highlight ? 'border-purple-200 bg-purple-50' : 'border-neutral-100 bg-white'}`}>
       <p className="text-xs font-medium text-neutral-400">{label}</p>
       <p className={`mt-1 text-xl font-bold ${highlight ? 'text-purple-700' : negative ? 'text-danger-500' : 'text-neutral-900'}`}>
-        ₹{Number(value).toFixed(0)}
+        {count ? Number(value ?? 0) : `₹${Number(value ?? 0).toFixed(0)}`}
       </p>
     </div>
   )

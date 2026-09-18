@@ -13,6 +13,15 @@ class Order extends Model
 {
     use HasFactory, HasRestaurantScope;
 
+    private const ALLOWED_TRANSITIONS = [
+        'pending' => ['confirmed', 'cancelled'],
+        'confirmed' => ['preparing', 'cancelled'],
+        'preparing' => ['ready_for_pickup'],
+        'ready_for_pickup' => ['picked_up'],
+        'picked_up' => ['on_the_way'],
+        'on_the_way' => ['delivered'],
+    ];
+
     protected $fillable = [
         'order_number', 'user_id', 'restaurant_id', 'delivery_partner_id', 'delivery_address_id',
         'status', 'payment_status', 'payment_method', 'razorpay_order_id', 'razorpay_payment_id',
@@ -61,6 +70,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class);
@@ -79,5 +93,10 @@ class Order extends Model
     public function deliveryEarning(): HasOne
     {
         return $this->hasOne(DeliveryEarning::class);
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        return in_array($status, self::ALLOWED_TRANSITIONS[$this->status] ?? [], true);
     }
 }

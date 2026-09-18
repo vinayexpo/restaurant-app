@@ -1,0 +1,8 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "composer install --no-dev --optimize-autoloader"
+
+[deploy]
+startCommand = "php artisan queue:work --queue=notifications,default --tries=3 --backoff=30 --timeout=60 --max-time=3600 --no-interaction"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

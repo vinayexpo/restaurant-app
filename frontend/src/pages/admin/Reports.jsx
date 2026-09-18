@@ -5,18 +5,22 @@ import { adminService } from '../../services/adminService'
 import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
 import { SkeletonStat } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 
 export default function AdminReports() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const load = () => {
     setLoading(true)
+    setError('')
     adminService
       .revenueReport({ date_from: dateFrom || undefined, date_to: dateTo || undefined })
       .then(({ data }) => setData(data.data))
+      .catch(() => setError('Revenue reporting is temporarily unavailable.'))
       .finally(() => setLoading(false))
   }
 
@@ -55,12 +59,16 @@ export default function AdminReports() {
             <SkeletonStat key={i} />
           ))}
         </div>
-      ) : (
+      ) : error ? (
+        <EmptyState title="Could not load revenue report" description={error} action={<Button size="sm" variant="secondary" onClick={load}>Retry</Button>} />
+      ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Gross Order Volume" value={`₹${Number(data.totals.gross_order_volume ?? 0).toFixed(0)}`} />
             <StatCard label="Total Amount Collected" value={`₹${Number(data.totals.total_amount ?? 0).toFixed(0)}`} />
             <StatCard label="Delivery Revenue" value={`₹${Number(data.totals.delivery_revenue ?? 0).toFixed(0)}`} />
+            <StatCard label="Refunds Issued" value={`₹${Number(data.refunds?.total_amount ?? 0).toFixed(0)} (${data.refunds?.order_count ?? 0})`} negative />
+            <StatCard label="Cancelled Orders" value={`₹${Number(data.cancellations?.total_amount ?? 0).toFixed(0)} (${data.cancellations?.order_count ?? 0})`} negative />
           </div>
 
           <div className="rounded-lg border border-neutral-100 bg-white p-4">
@@ -75,16 +83,16 @@ export default function AdminReports() {
             </ResponsiveContainer>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, negative }) {
   return (
     <div className="rounded-lg border border-neutral-100 bg-white p-4">
       <p className="text-xs font-medium text-neutral-400">{label}</p>
-      <p className="mt-1 text-xl font-bold text-neutral-900">{value}</p>
+      <p className={`mt-1 text-xl font-bold ${negative ? 'text-danger-500' : 'text-neutral-900'}`}>{value}</p>
     </div>
   )
 }

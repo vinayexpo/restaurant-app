@@ -55,30 +55,38 @@ class OrderController extends Controller
     {
         $order = Order::where('user_id', $request->user()->id)->findOrFail($id);
 
-        if (! in_array($order->status, ['pending', 'confirmed'], true)) {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:255',
+        ]);
+
+        if (! $order->canTransitionTo('cancelled')) {
             return $this->error('This order can no longer be cancelled.', [], 422);
         }
 
-        $validated = $request->validate([
-            'reason' => 'nullable|string|max:255',
-        ]);
+        $order = DB::transaction(function () use ($order, $validated, $request) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
 
-        DB::transaction(function () use ($order, $validated) {
+            if (! $order->canTransitionTo('cancelled')) {
+                abort(422, 'This order can no longer be cancelled.');
+            }
+
             if ($order->payment_method === 'razorpay' && $order->payment_status === 'paid' && $order->razorpay_payment_id) {
-                $this->paymentService->refundRazorpay($order->razorpay_payment_id, (float) $order->total_amount);
-                $order->payment_status = 'refunded';
+                $this->paymentService->requestRefund($order, (float) $order->total_amount, "customer-cancellation:{$order->id}", $request->user()->id, $validated['reason']);
             }
 
             $order->status = 'cancelled';
             $order->cancelled_at = now();
-            $order->cancel_reason = $validated['reason'] ?? null;
+            $order->cancel_reason = $validated['reason'];
             $order->save();
+            $this->paymentService->restoreOrderBenefits($order);
 
             $order->statusHistory()->create([
                 'status' => 'cancelled',
                 'changed_by' => $order->user_id,
-                'note' => $validated['reason'] ?? null,
+                'note' => $validated['reason'],
             ]);
+
+            return $order;
         });
 
         $order->loadMissing('restaurant.user');

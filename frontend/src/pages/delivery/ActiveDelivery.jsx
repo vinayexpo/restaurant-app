@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Phone, MapPin } from 'lucide-react'
 import { deliveryService } from '../../services/deliveryService'
 import { Button } from '../../components/Button'
 import { LiveMap } from '../../components/LiveMap'
+import { subscribeToRealtimeChannel } from '../../lib/echo'
 
 const STEPS = [
   { key: 'ready_for_pickup', label: 'Picking Up', next: 'picked_up', nextLabel: 'Confirm Pickup' },
@@ -21,11 +22,15 @@ export default function ActiveDelivery() {
   const [confirmingCash, setConfirmingCash] = useState(false)
   const [myPosition, setMyPosition] = useState(null)
 
-  const load = () => deliveryService.order(id).then(({ data }) => setOrder(data.data))
+  const load = useCallback(() => deliveryService.order(id).then(({ data }) => setOrder(data.data)), [id])
 
   useEffect(() => {
     load()
-  }, [id])
+  }, [load])
+
+  useEffect(() => subscribeToRealtimeChannel(`orders.${id}`, {
+    '.order.status.changed': load,
+  }, { onReconnect: load }), [id, load])
 
   useEffect(() => {
     if (!navigator.geolocation) return

@@ -30,9 +30,17 @@ class FinancialsController extends Controller
 
         $grossOrderValue = (float) $orders->sum('total_amount');
         $deliveryRevenue = (float) $orders->sum('delivery_fee');
-        $refundsIssued = (float) Order::where('payment_status', 'refunded')
+        // Refund timestamps are not stored separately, so updated_at is the existing record of the refund event.
+        $refunds = Order::where('payment_status', 'refunded')
             ->whereBetween('updated_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
-            ->sum('total_amount');
+            ->selectRaw('SUM(total_amount) as total_amount, COUNT(*) as order_count')
+            ->first();
+        $refundsIssued = (float) $refunds->total_amount;
+
+        $cancellations = Order::where('status', 'cancelled')
+            ->whereBetween('cancelled_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->selectRaw('SUM(total_amount) as total_amount, COUNT(*) as order_count')
+            ->first();
 
         $commissionByRestaurant = [];
         $totalCommission = 0.0;
@@ -68,6 +76,9 @@ class FinancialsController extends Controller
             'platform_commission' => round($totalCommission, 2),
             'delivery_revenue' => $deliveryRevenue,
             'refunds_issued' => $refundsIssued,
+            'refunded_order_count' => (int) $refunds->order_count,
+            'cancelled_order_count' => (int) $cancellations->order_count,
+            'cancelled_order_value' => (float) $cancellations->total_amount,
             'net_platform_revenue' => $netRevenue,
             'by_restaurant' => $commissionByRestaurant,
         ]);

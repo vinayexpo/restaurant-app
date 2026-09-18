@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
 import { Clock } from 'lucide-react'
 import { ownerService } from '../../services/ownerService'
-import { getEcho } from '../../lib/echo'
+import { subscribeToRealtimeChannel } from '../../lib/echo'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
@@ -40,7 +40,7 @@ export default function OwnerOrders() {
   const [refundingId, setRefundingId] = useState(null)
   const [filters, setFilters] = useState({ search: '', customer: '', payment_method: '', date_from: '', date_to: '' })
 
-  const load = (page = 1) => {
+  const load = useCallback((page = 1) => {
     setLoading(true)
     ownerService
       .orders({ status: activeTab, page, ...filters })
@@ -51,30 +51,29 @@ export default function OwnerOrders() {
       .finally(() => setLoading(false))
 
     ownerService.orderStatusCounts().then(({ data }) => setStatusCounts(data.data)).catch(() => {})
-  }
+  }, [activeTab, filters])
 
-  useEffect(() => load(1), [activeTab, filters])
+  useEffect(() => load(1), [load])
 
   useEffect(() => {
     if (!restaurant?.id) return
-    const echo = getEcho()
-    const channel = echo.private(`restaurant.${restaurant.id}.orders`)
-    channel.listen('.order.status.changed', () => {
-      load()
-      toast('Order update received.', { icon: '🔔' })
-    })
-    channel.listen('.order.new', () => {
-      load()
-      toast.success('New order received!')
-    })
-    return () => echo.leave(`restaurant.${restaurant.id}.orders`)
+    return subscribeToRealtimeChannel(`restaurant.${restaurant.id}.orders`, {
+      '.order.status.changed': () => {
+        load()
+        toast('Order update received.', { icon: '🔔' })
+      },
+      '.order.new': () => {
+        load()
+        toast.success('New order received!')
+      },
+    }, { onReconnect: load })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurant?.id, activeTab])
+  }, [restaurant?.id, load])
 
-  const advance = async (order, nextStatus) => {
+  const advance = async (order, nextStatus, reason) => {
     setAdvancingId(order.id)
     try {
-      await ownerService.updateOrderStatus(order.id, { status: nextStatus })
+      await ownerService.updateOrderStatus(order.id, { status: nextStatus, ...(reason ? { reason } : {}) })
       toast.success('Order status updated.')
       load()
     } catch (error) {
@@ -85,9 +84,9 @@ export default function OwnerOrders() {
   }
 
   const reject = (order) => {
-    if (window.confirm(`Reject order ${order.order_number}? The customer will be notified.`)) {
-      advance(order, 'cancelled')
-    }
+    const reason = window.prompt(`Why are you rejecting order ${order.order_number}?`)
+    if (reason?.trim()) advance(order, 'cancelled', reason.trim())
+    else if (reason !== null) toast.error('A cancellation reason is required.')
   }
 
   const refund = async (order) => {

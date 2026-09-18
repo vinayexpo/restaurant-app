@@ -102,7 +102,7 @@ export default function Checkout() {
         return
       }
 
-      const { data: initData } = await orderService.paymentInitiate(total)
+      const { data: initData } = await orderService.paymentInitiate(verifyPayload())
 
       openCheckout({
         rzpOrderId: initData.data.rzp_order_id,

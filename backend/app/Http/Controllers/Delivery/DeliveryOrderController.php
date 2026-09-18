@@ -68,13 +68,16 @@ class DeliveryOrderController extends Controller
             return $this->error('You must be available to accept orders.', [], 422);
         }
 
-        $order = Order::where('status', 'ready_for_pickup')->whereNull('delivery_partner_id')->find($id);
+        $assigned = Order::whereKey($id)
+            ->where('status', 'ready_for_pickup')
+            ->whereNull('delivery_partner_id')
+            ->update(['delivery_partner_id' => $request->user()->id]);
 
-        if (! $order) {
+        if ($assigned !== 1) {
             return $this->error('This order is no longer available.', [], 422);
         }
 
-        $order->update(['delivery_partner_id' => $request->user()->id]);
+        $order = Order::findOrFail($id);
 
         $order->loadMissing('user');
         if ($order->user && $order->user->id !== $request->user()->id) {
@@ -97,6 +100,10 @@ class DeliveryOrderController extends Controller
         $validated = $request->validate([
             'status' => ['required', Rule::in(['picked_up', 'on_the_way', 'delivered'])],
         ]);
+
+        if (! $order->canTransitionTo($validated['status'])) {
+            return $this->error("Order cannot transition from {$order->status} to {$validated['status']}.", [], 422);
+        }
 
         $this->orderService->updateStatus($order, $validated['status'], $request->user());
 

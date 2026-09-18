@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AlertTriangle, Wallet, Package } from 'lucide-react'
@@ -14,16 +14,26 @@ export default function DeliveryDashboard() {
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(false)
 
-  const load = () => {
+  const load = useCallback(() => {
     Promise.all([deliveryService.profile(), deliveryService.earningsSummary(), deliveryService.availableOrders().catch(() => ({ data: { data: [] } }))])
       .then(([profileRes, summaryRes]) => {
         setProfile(profileRes.data.data)
         setSummary(summaryRes.data.data)
       })
       .finally(() => setLoading(false))
-  }
+  }, [])
 
-  useEffect(load, [])
+  useEffect(load, [load])
+
+  useEffect(() => {
+    const refresh = () => load()
+    window.addEventListener('restaurantapp:notification', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.removeEventListener('restaurantapp:notification', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [load])
 
   const toggleAvailability = async () => {
     setToggling(true)
