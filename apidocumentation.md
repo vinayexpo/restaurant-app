@@ -23,7 +23,7 @@
 | PUT | `/auth/profile` | Any token | `name`, `phone`, `profile_image` | `profile_image` is JPEG/PNG/JPG/WebP, max 5 MB. |
 | PUT | `/auth/password` | Any token | `current_password`, `new_password`, `new_password_confirmation` | Revokes other user tokens. |
 | DELETE | `/auth/account` | Customer token | `current_password`, `confirmation` = `DELETE` | Revokes tokens, removes ephemeral customer data, anonymizes/deactivates account, and preserves transactional records. |
-| GET | `/settings/public` | Public | None | Public pricing, loyalty, and feature-flag settings. |
+| GET | `/settings/public` | Public | None | Public settings including `tax_rate_pct`, loyalty rules, and feature flags. |
 | GET | `/restaurants` | Public | `city`, `cuisine_type`, `is_veg`, `min_rating`, `sort`, `lat`, `lng` | Active restaurants; sort supports `rating`, `delivery_fee`, `distance`. |
 | GET | `/restaurants/featured` | Public | None | Up to 10 featured restaurants. |
 | GET | `/restaurants/search` | Public | `q` required | Paginated name/cuisine search. |
@@ -200,7 +200,7 @@ All `/admin/*` routes require `admin` or `superadmin`.
 | PUT/DELETE | `/admin/loyalty/tiers/{id}` | Tier fields | Update/delete safe tier. |
 | POST | `/admin/loyalty/bonus` | `user_id`, `points`, `reason` | Grants bonus points. |
 | POST | `/admin/notifications/broadcast` | `title`, `body`, `target`; optional `user_id`, `data` | Sends broadcast notifications. |
-| GET | `/admin/settings` | None | Non-superadmin settings. |
+| GET | `/admin/settings` | None | Non-superadmin settings; excludes `tax_rate_pct`, `maintenance_mode`, and `default_commission_pct`. |
 | PUT | `/admin/settings/{key}` | `value`, optional `cast` | Updates permitted setting. |
 | GET | `/admin/reports/revenue` or `/orders` | `date_from`, `date_to` | Date range max 366 days; includes refund/cancellation metrics. |
 
@@ -216,7 +216,7 @@ All `/admin/*` routes require `admin` or `superadmin`.
 | GET | `/superadmin/audit-logs` | Superadmin | action/search/target/user/date filters | Paginated audit log (25/page). |
 | GET | `/superadmin/financials` | Superadmin | `date_from`, `date_to` | GMV, refunds, cancellations, commissions; 366-day max. |
 | GET/PUT | `/superadmin/feature-flags`, `/superadmin/feature-flags/{key}` | Superadmin | Boolean `value` for update | Supported feature flags only. |
-| GET/PUT | `/superadmin/settings`, `/superadmin/settings/{key}` | Superadmin | Setting `value`, optional `cast` | Full platform settings. |
+| GET/PUT | `/superadmin/settings`, `/superadmin/settings/{key}` | Superadmin | Setting `value`, optional `cast` | Full platform settings, including `tax_rate_pct`. |
 | POST | `/superadmin/impersonate/{userId}` | Superadmin | None | Issues 15-minute user token. |
 | DELETE | `/superadmin/impersonate` | Impersonation token | None | Revokes current impersonation session. |
 

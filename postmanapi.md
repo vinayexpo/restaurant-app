@@ -77,6 +77,8 @@ Authorization: Bearer {{customerToken}}
 GET {{apiUrl}}/settings/public
 ```
 
+The response includes `data.tax_rate_pct`, the percentage used for checkout tax calculations.
+
 ```http
 GET {{apiUrl}}/restaurants?city=Delhi&is_veg=1&sort=rating&page=1
 ```
@@ -415,6 +417,16 @@ Content-Type: application/json
 ```http
 GET {{apiUrl}}/admin/reports/revenue?date_from=2026-09-01&date_to=2026-09-30
 Authorization: Bearer {{adminToken}}
+```
+
+### Update Tax Rate
+
+```http
+PUT {{apiUrl}}/superadmin/settings/tax_rate_pct
+Authorization: Bearer {{superadminToken}}
+Content-Type: application/json
+
+{ "value": 5, "cast": "float" }
 ```
 
 ## Superadmin Folder
