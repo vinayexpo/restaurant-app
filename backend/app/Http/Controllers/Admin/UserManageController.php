@@ -34,7 +34,7 @@ class UserManageController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = User::query();
+        $query = User::where('role', '!=', 'superadmin');
 
         $filters = $request->validate([
             'role' => 'nullable|string|max:50',
@@ -59,14 +59,16 @@ class UserManageController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $user = User::with(['restaurant', 'deliveryPartner'])->findOrFail($id);
+        $user = User::where('role', '!=', 'superadmin')
+            ->with(['restaurant', 'deliveryPartner'])
+            ->findOrFail($id);
 
         return $this->success($user);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $user = User::findOrFail($id);
+        $user = User::where('role', '!=', 'superadmin')->findOrFail($id);
 
         // Keep account permissions outside this management endpoint.
         $validated = $request->validate([
@@ -82,7 +84,7 @@ class UserManageController extends Controller
 
     public function activate(int $id): JsonResponse
     {
-        $user = User::findOrFail($id);
+        $user = User::where('role', '!=', 'superadmin')->findOrFail($id);
         $user->update(['is_active' => true]);
 
         return $this->success($user, 'User activated.');
@@ -90,7 +92,7 @@ class UserManageController extends Controller
 
     public function deactivate(int $id): JsonResponse
     {
-        $user = User::findOrFail($id);
+        $user = User::where('role', '!=', 'superadmin')->findOrFail($id);
         $user->update(['is_active' => false]);
 
         return $this->success($user, 'User deactivated.');
