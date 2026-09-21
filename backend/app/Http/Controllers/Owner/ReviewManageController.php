@@ -31,7 +31,7 @@ class ReviewManageController extends Controller
         if ($rating = $filters['rating'] ?? null) {
             $query->where('rating', $rating);
         }
-        if (array_key_exists('replied', $filters)) {
+        if (isset($filters['replied'])) {
             $filters['replied'] ? $query->whereNotNull('owner_replied_at') : $query->whereNull('owner_replied_at');
         }
         if ($search = $filters['search'] ?? null) {

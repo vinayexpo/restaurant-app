@@ -27,7 +27,7 @@ class CouponManageController extends Controller
                 ->orWhere('title', 'LIKE', "%{$search}%"));
         }
 
-        if (array_key_exists('is_active', $filters)) {
+        if (isset($filters['is_active'])) {
             $query->where('is_active', $request->boolean('is_active'));
         }
 

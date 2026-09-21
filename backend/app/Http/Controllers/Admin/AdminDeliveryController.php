@@ -24,7 +24,7 @@ class AdminDeliveryController extends Controller
             'search' => 'nullable|string|max:100',
         ]);
 
-        if (array_key_exists('is_verified', $filters)) {
+        if (isset($filters['is_verified'])) {
             $query->where('is_verified', $request->boolean('is_verified'));
         }
 
