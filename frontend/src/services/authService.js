@@ -15,6 +15,7 @@ export const authService = {
     return api.put('/auth/profile', payload)
   },
   changePassword: (payload) => api.put('/auth/password', payload),
+  deleteAccount: (payload) => api.delete('/auth/account', { data: payload }),
   forgotPassword: (payload) => api.post('/auth/forgot-password', payload),
   resetPassword: (payload) => api.post('/auth/reset-password', payload),
 }

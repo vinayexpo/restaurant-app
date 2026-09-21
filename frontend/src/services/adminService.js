@@ -6,9 +6,9 @@ export const adminService = {
   createRestaurantOwner: (payload) => api.post('/admin/users', payload),
   users: (params) => api.get('/admin/users', { params }),
   user: (id) => api.get(`/admin/users/${id}`),
+  updateUser: (id, payload) => api.patch(`/admin/users/${id}`, payload),
   activateUser: (id) => api.patch(`/admin/users/${id}/activate`),
   deactivateUser: (id) => api.patch(`/admin/users/${id}/deactivate`),
-  deleteUser: (id) => api.delete(`/admin/users/${id}`),
 
   restaurants: (params) => api.get('/admin/restaurants', { params }),
   restaurant: (id) => api.get(`/admin/restaurants/${id}`),

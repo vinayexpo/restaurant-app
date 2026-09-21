@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Tag } from 'lucide-react'
+import { Pencil, Plus, Trash2, Tag } from 'lucide-react'
 import { ownerService } from '../../services/ownerService'
 import { Input } from '../../components/Input'
 import { Select } from '../../components/Select'
+import { Textarea } from '../../components/Textarea'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { Pagination } from '../../components/Pagination'
@@ -12,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState'
 const emptyForm = {
   code: '',
   title: '',
+  description: '',
   type: 'percentage',
   value: '',
   min_order_amount: '0',
@@ -27,6 +29,7 @@ export default function OwnerCoupons() {
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingCoupon, setEditingCoupon] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -47,16 +50,54 @@ export default function OwnerCoupons() {
     setErrors({})
     setSaving(true)
     try {
-      await ownerService.createCoupon(form)
+      if (editingCoupon) {
+        await ownerService.updateCoupon(editingCoupon.id, form)
+      } else {
+        await ownerService.createCoupon(form)
+      }
       setShowModal(false)
       setForm(emptyForm)
-      toast.success('Coupon created.')
+      setEditingCoupon(null)
+      toast.success(editingCoupon ? 'Coupon updated.' : 'Coupon created.')
       load()
     } catch (error) {
       setErrors(error.response?.data?.errors ?? {})
     } finally {
       setSaving(false)
     }
+  }
+
+  const openCreate = () => {
+    setEditingCoupon(null)
+    setForm(emptyForm)
+    setErrors({})
+    setShowModal(true)
+  }
+
+  const openEdit = (coupon) => {
+    setEditingCoupon(coupon)
+    setErrors({})
+    setForm({
+      code: coupon.code ?? '',
+      title: coupon.title ?? '',
+      description: coupon.description ?? '',
+      type: coupon.type ?? 'percentage',
+      value: coupon.value ?? '',
+      min_order_amount: coupon.min_order_amount ?? '0',
+      max_discount: coupon.max_discount ?? '',
+      usage_limit: coupon.usage_limit ?? '',
+      per_user_limit: coupon.per_user_limit ?? '1',
+      valid_from: coupon.valid_from?.slice(0, 10) ?? '',
+      valid_until: coupon.valid_until?.slice(0, 10) ?? '',
+    })
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    if (saving) return
+    setShowModal(false)
+    setEditingCoupon(null)
+    setErrors({})
   }
 
   const toggleActive = async (coupon) => {
@@ -81,7 +122,7 @@ export default function OwnerCoupons() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-bold text-neutral-900">Coupons</h1>
-        <Button size="sm" onClick={() => setShowModal(true)}>
+        <Button size="sm" onClick={openCreate}>
           <Plus size={14} /> Create Coupon
         </Button>
       </div>
@@ -120,9 +161,14 @@ export default function OwnerCoupons() {
                     <input type="checkbox" checked={c.is_active} onChange={() => toggleActive(c)} className="accent-brand-500" />
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => remove(c.id)} className="text-neutral-400 hover:text-danger-500">
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => openEdit(c)} className="text-neutral-400 hover:text-brand-600" aria-label={`Edit ${c.code}`}>
+                        <Pencil size={15} />
+                      </button>
+                      <button type="button" onClick={() => remove(c.id)} className="text-neutral-400 hover:text-danger-500" aria-label={`Delete ${c.code}`}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -133,10 +179,11 @@ export default function OwnerCoupons() {
 
       <Pagination meta={meta} onPageChange={load} />
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Create Coupon">
+      <Modal open={showModal} onClose={closeModal} title={editingCoupon ? 'Edit Coupon' : 'Create Coupon'}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input label="Coupon Code" value={form.code} onChange={change('code')} error={err('code')} required />
           <Input label="Title" value={form.title} onChange={change('title')} error={err('title')} required />
+          <Textarea label="Description" value={form.description} onChange={change('description')} error={err('description')} rows={2} />
           <div className="grid grid-cols-2 gap-3">
             <Select label="Type" value={form.type} onChange={change('type')}>
               <option value="percentage">Percentage</option>
@@ -157,7 +204,7 @@ export default function OwnerCoupons() {
             <Input label="Valid Until" type="date" value={form.valid_until} onChange={change('valid_until')} error={err('valid_until')} required />
           </div>
           <Button type="submit" loading={saving} className="w-full">
-            Create Coupon
+            {editingCoupon ? 'Save Changes' : 'Create Coupon'}
           </Button>
         </form>
       </Modal>

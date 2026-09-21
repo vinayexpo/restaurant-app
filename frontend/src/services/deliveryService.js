@@ -20,6 +20,7 @@ export const deliveryService = {
   earningsSummary: () => api.get('/delivery/earnings/summary'),
   payoutAccount: () => api.get('/delivery/payout-account'),
   savePayoutAccount: (payload) => api.post('/delivery/payout-account', payload),
+  removePayoutAccount: () => api.delete('/delivery/payout-account'),
   payouts: (params) => api.get('/delivery/payouts', { params }),
   requestPayout: (payload) => api.post('/delivery/payouts', payload),
 }

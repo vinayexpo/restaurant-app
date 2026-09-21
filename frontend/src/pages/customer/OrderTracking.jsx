@@ -40,6 +40,7 @@ export default function OrderTracking() {
   const [showReviewModal, setShowReviewModal] = useState(searchParams.get('review') === '1')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState('')
+  const [savingReview, setSavingReview] = useState(false)
   const [riderPosition, setRiderPosition] = useState(null)
 
   const load = () => orderService.show(id).then(({ data }) => setOrder(data.data))
@@ -78,13 +79,37 @@ export default function OrderTracking() {
   }
 
   const submitReview = async () => {
+    setSavingReview(true)
     try {
-      await api.post('/reviews', { order_id: Number(id), rating: reviewRating, comment: reviewComment })
+      const payload = { rating: reviewRating, comment: reviewComment }
+      const response = order.review
+        ? await api.put(`/reviews/${order.review.id}`, payload)
+        : await api.post('/reviews', { order_id: Number(id), ...payload })
       setShowReviewModal(false)
-      setOrder((prev) => ({ ...prev, review: { rating: reviewRating, comment: reviewComment } }))
-      toast.success('Thanks for your review!')
+      setOrder((prev) => ({ ...prev, review: response.data.data }))
+      toast.success(order.review ? 'Review updated.' : 'Thanks for your review!')
     } catch (error) {
-      toast.error(error.response?.data?.message ?? 'Could not submit review.')
+      toast.error(error.response?.data?.message ?? 'Could not save review.')
+    } finally {
+      setSavingReview(false)
+    }
+  }
+
+  const editReview = () => {
+    setReviewRating(order.review.rating)
+    setReviewComment(order.review.comment ?? '')
+    setShowReviewModal(true)
+  }
+
+  const deleteReview = async () => {
+    if (!window.confirm('Delete your review? This cannot be undone.')) return
+
+    try {
+      await api.delete(`/reviews/${order.review.id}`)
+      setOrder((prev) => ({ ...prev, review: null }))
+      toast.success('Review deleted.')
+    } catch (error) {
+      toast.error(error.response?.data?.message ?? 'Could not delete review.')
     }
   }
 
@@ -226,10 +251,19 @@ export default function OrderTracking() {
               Rate Delivery
             </Button>
           )}
-          {!order.review && (
+          {!order.review ? (
             <Button variant="secondary" className="flex-1" onClick={() => setShowReviewModal(true)}>
               Write a Review
             </Button>
+          ) : (
+            <>
+              <Button variant="secondary" className="flex-1" onClick={editReview}>
+                Edit Review
+              </Button>
+              <Button variant="danger" className="flex-1" onClick={deleteReview}>
+                Delete Review
+              </Button>
+            </>
           )}
         </div>
       )}
@@ -260,7 +294,7 @@ export default function OrderTracking() {
         </Button>
       </Modal>
 
-      <Modal open={showReviewModal} onClose={() => setShowReviewModal(false)} title="Write a Review">
+      <Modal open={showReviewModal} onClose={() => setShowReviewModal(false)} title={order?.review ? 'Edit Review' : 'Write a Review'}>
         <div className="mb-4 flex justify-center gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} onClick={() => setReviewRating(n)}>
@@ -279,8 +313,8 @@ export default function OrderTracking() {
           rows={4}
           className="w-full rounded-md border border-neutral-200 p-3 text-sm focus:border-brand-500 focus:outline-none"
         />
-        <Button className="mt-3 w-full" onClick={submitReview}>
-          Submit Review
+        <Button className="mt-3 w-full" loading={savingReview} onClick={submitReview}>
+          {order?.review ? 'Save Review' : 'Submit Review'}
         </Button>
       </Modal>
 

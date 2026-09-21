@@ -40,6 +40,25 @@ class DeliveryPayoutController extends Controller
         return $this->success($this->accountData($account), 'Payout account saved.', 201);
     }
 
+    public function destroyAccount(Request $request): JsonResponse
+    {
+        $account = $this->partner($request)->payoutAccounts()->where('is_active', true)->latest()->first();
+
+        if (! $account) {
+            return $this->error('No active payout account found.', [], 404);
+        }
+
+        if ($account->payouts()->exists()) {
+            $account->update(['is_active' => false]);
+
+            return $this->success(null, 'Payout account deactivated. Its payout history has been retained.');
+        }
+
+        $account->delete();
+
+        return $this->success(null, 'Payout account removed.');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([

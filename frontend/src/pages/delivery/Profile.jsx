@@ -27,6 +27,7 @@ export default function DeliveryProfile() {
         phone: data.data.user?.phone ?? '',
         vehicle_type: data.data.vehicle_type,
         vehicle_number: data.data.vehicle_number,
+        licence_number: data.data.licence_number ?? '',
       })
     })
   }, [])
@@ -111,6 +112,7 @@ export default function DeliveryProfile() {
           <option value="scooter">Scooter</option>
         </Select>
         <Input label="Vehicle Number" value={form.vehicle_number} onChange={change('vehicle_number')} />
+        <Input label="Licence Number" value={form.licence_number} onChange={change('licence_number')} />
         <Button type="submit" loading={saving} className="w-full">
           Save Changes
         </Button>

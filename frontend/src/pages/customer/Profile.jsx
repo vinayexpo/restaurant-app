@@ -65,6 +65,10 @@ function AccountTab({ user, onLogout, setUser }) {
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', new_password_confirmation: '' })
   const [passwordErrors, setPasswordErrors] = useState({})
   const [changingPassword, setChangingPassword] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteForm, setDeleteForm] = useState({ current_password: '', confirmation: '' })
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const handleSaveProfile = async (e) => {
     e.preventDefault()
@@ -110,6 +114,22 @@ function AccountTab({ user, onLogout, setUser }) {
       setPasswordErrors(error.response?.data?.errors ?? { current_password: error.response?.data?.message })
     } finally {
       setChangingPassword(false)
+    }
+  }
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault()
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await authService.deleteAccount(deleteForm)
+      setShowDeleteModal(false)
+      onLogout()
+      toast.success('Your account has been deleted.')
+    } catch (error) {
+      setDeleteError(error.response?.data?.errors?.current_password?.[0] ?? error.response?.data?.message ?? 'Could not delete your account.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -183,6 +203,37 @@ function AccountTab({ user, onLogout, setUser }) {
       <button onClick={onLogout} className="flex w-full items-center justify-center gap-2 rounded-lg border border-danger-200 py-3 text-sm font-semibold text-danger-500">
         <LogOut size={15} /> Log Out
       </button>
+
+      <div className="rounded-lg border border-danger-200 bg-danger-50/50 p-4">
+        <h3 className="text-sm font-bold text-danger-700">Delete account</h3>
+        <p className="mt-1 text-xs text-danger-700">Your personal profile data will be anonymized and you will be signed out. Completed orders are retained for legal and transaction records.</p>
+        <Button variant="danger" size="sm" className="mt-3" onClick={() => setShowDeleteModal(true)}>
+          Delete My Account
+        </Button>
+      </div>
+
+      <Modal open={showDeleteModal} onClose={() => !deleting && setShowDeleteModal(false)} title="Delete Your Account">
+        <form onSubmit={handleDeleteAccount} className="space-y-3">
+          <p className="text-sm text-neutral-600">This permanently deactivates your account and cannot be reversed. Enter your password and type <strong>DELETE</strong> to confirm.</p>
+          <Input
+            label="Current Password"
+            type="password"
+            value={deleteForm.current_password}
+            onChange={(e) => setDeleteForm((form) => ({ ...form, current_password: e.target.value }))}
+            required
+          />
+          <Input
+            label="Type DELETE to confirm"
+            value={deleteForm.confirmation}
+            onChange={(e) => setDeleteForm((form) => ({ ...form, confirmation: e.target.value }))}
+            required
+          />
+          {deleteError && <p className="text-sm text-danger-600">{deleteError}</p>}
+          <Button type="submit" variant="danger" className="w-full" loading={deleting} disabled={deleteForm.confirmation !== 'DELETE'}>
+            Permanently Delete Account
+          </Button>
+        </form>
+      </Modal>
     </div>
   )
 }

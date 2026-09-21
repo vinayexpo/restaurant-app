@@ -73,4 +73,16 @@ class ReviewManageController extends Controller
 
         return $this->success($review->fresh(), 'Reply posted successfully.');
     }
+
+    public function clearReply(Request $request, int $id): JsonResponse
+    {
+        $review = Review::where('restaurant_id', $request->get('restaurant')->id)->findOrFail($id);
+
+        $review->update([
+            'owner_reply' => null,
+            'owner_replied_at' => null,
+        ]);
+
+        return $this->success($review->fresh(), 'Reply deleted successfully.');
+    }
 }

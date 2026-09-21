@@ -93,6 +93,7 @@ class RestaurantManageController extends Controller
             'min_order_amount' => 'sometimes|numeric|min:0',
             'delivery_fee' => 'sometimes|numeric|min:0',
             'avg_delivery_time' => 'sometimes|integer|min:5',
+            'fssai_number' => 'sometimes|required|string|max:50',
             'gst_number' => 'nullable|string|max:20',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
@@ -106,9 +107,22 @@ class RestaurantManageController extends Controller
             $validated['cover_image'] = $this->imageService->storeWebP($request->file('cover_image'), 'restaurants');
         }
 
+        // Changed regulatory identifiers require another approval before the restaurant is live.
+        $requiresReapproval = (
+            (array_key_exists('fssai_number', $validated) && $validated['fssai_number'] !== $restaurant->fssai_number)
+            || (array_key_exists('gst_number', $validated) && $validated['gst_number'] !== $restaurant->gst_number)
+        );
+
+        if ($requiresReapproval) {
+            $validated = [...$validated, 'is_active' => false, 'is_verified' => false, 'rejection_reason' => null];
+        }
+
         $restaurant->update($validated);
 
-        return $this->success($restaurant->fresh(), 'Restaurant updated successfully.');
+        return $this->success(
+            $restaurant->fresh(),
+            $requiresReapproval ? 'Compliance details changed. Restaurant submitted for reapproval.' : 'Restaurant updated successfully.'
+        );
     }
 
     public function hours(Request $request): JsonResponse

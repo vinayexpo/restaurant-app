@@ -73,6 +73,19 @@ export default function DeliveryEarnings() {
     }
   }
 
+  const removePayoutAccount = async () => {
+    if (!window.confirm('Remove this payout account? Accounts with payout history will be deactivated to preserve that history.')) return
+
+    try {
+      const { data } = await deliveryService.removePayoutAccount()
+      setPayoutAccount(null)
+      setShowAccountForm(false)
+      setPayoutStatus(data.message)
+    } catch (error) {
+      setPayoutStatus(error.response?.data?.message ?? 'Could not remove payout account.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-3 p-4">
@@ -109,11 +122,14 @@ export default function DeliveryEarnings() {
             <h2 className="text-sm font-bold text-neutral-900">Payout account</h2>
             <p className="mt-1 text-xs text-neutral-500">{payoutAccount ? payoutAccount.summary : 'Add a bank account or UPI ID to withdraw earnings.'}</p>
           </div>
-          <button className="text-sm font-semibold text-brand-700" onClick={() => setShowAccountForm((visible) => !visible)}>
-            {payoutAccount ? 'Change' : 'Add account'}
-          </button>
+          <div className="flex items-center gap-3">
+            {payoutAccount && <button className="text-sm font-semibold text-danger-600" onClick={removePayoutAccount}>Remove</button>}
+            <button className="text-sm font-semibold text-brand-700" onClick={() => setShowAccountForm((visible) => !visible)}>
+              {payoutAccount ? 'Replace payout account' : 'Add account'}
+            </button>
+          </div>
         </div>
-        {showAccountForm && <PayoutAccountForm onSaved={(account) => { setPayoutAccount(account); setShowAccountForm(false) }} />}
+        {showAccountForm && <PayoutAccountForm isReplacing={Boolean(payoutAccount)} onSaved={(account) => { setPayoutAccount(account); setShowAccountForm(false) }} />}
       </section>
 
       <section className="mb-6 rounded-lg bg-neutral-900 p-4 text-white">
@@ -191,7 +207,7 @@ function FilterControls({ filters, setFilters, searchPlaceholder, statuses }) {
   )
 }
 
-function PayoutAccountForm({ onSaved }) {
+function PayoutAccountForm({ isReplacing, onSaved }) {
   const [type, setType] = useState('bank_account')
   const [saving, setSaving] = useState(false)
 
@@ -218,7 +234,7 @@ function PayoutAccountForm({ onSaved }) {
         <input name="account_number" required inputMode="numeric" placeholder="Account number" className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm" />
         <input name="ifsc_code" required placeholder="IFSC code" className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm" />
       </> : <input name="upi_id" required placeholder="UPI ID (name@bank)" className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm" />}
-      <button disabled={saving} className="rounded-md bg-brand-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Saving...' : 'Save payout account'}</button>
+      <button disabled={saving} className="rounded-md bg-brand-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Saving...' : isReplacing ? 'Replace payout account' : 'Save payout account'}</button>
     </form>
   )
 }

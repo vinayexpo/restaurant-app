@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Tag, Search } from 'lucide-react'
+import { Pencil, Plus, Trash2, Tag, Search } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Input } from '../../components/Input'
 import { Select } from '../../components/Select'
@@ -20,6 +20,8 @@ const emptyForm = {
   per_user_limit: '1',
   valid_from: '',
   valid_until: '',
+  description: '',
+  is_active: true,
 }
 
 export default function AdminCoupons() {
@@ -27,6 +29,7 @@ export default function AdminCoupons() {
   const [meta, setMeta] = useState({ page: 1, last_page: 1 })
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingCoupon, setEditingCoupon] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -52,10 +55,12 @@ export default function AdminCoupons() {
     setErrors({})
     setSaving(true)
     try {
-      await adminService.createCoupon(form)
+      if (editingCoupon) await adminService.updateCoupon(editingCoupon.id, form)
+      else await adminService.createCoupon(form)
       setShowModal(false)
+      setEditingCoupon(null)
       setForm(emptyForm)
-      toast.success('Coupon created.')
+      toast.success(editingCoupon ? 'Coupon updated.' : 'Coupon created.')
       load()
     } catch (error) {
       setErrors(error.response?.data?.errors ?? {})
@@ -70,6 +75,33 @@ export default function AdminCoupons() {
     load()
   }
 
+  const openCreate = () => {
+    setEditingCoupon(null)
+    setForm(emptyForm)
+    setErrors({})
+    setShowModal(true)
+  }
+
+  const openEdit = (coupon) => {
+    setEditingCoupon(coupon)
+    setForm({
+      code: coupon.code,
+      title: coupon.title,
+      description: coupon.description ?? '',
+      type: coupon.type,
+      value: coupon.value,
+      min_order_amount: coupon.min_order_amount ?? '0',
+      max_discount: coupon.max_discount ?? '',
+      usage_limit: coupon.usage_limit ?? '',
+      per_user_limit: coupon.per_user_limit ?? '1',
+      valid_from: coupon.valid_from?.slice(0, 10) ?? '',
+      valid_until: coupon.valid_until?.slice(0, 10) ?? '',
+      is_active: coupon.is_active,
+    })
+    setErrors({})
+    setShowModal(true)
+  }
+
   const err = (field) => {
     const e = errors[field]
     return Array.isArray(e) ? e[0] : e
@@ -81,7 +113,7 @@ export default function AdminCoupons() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-bold text-neutral-900">Platform Coupons</h1>
-        <Button size="sm" onClick={() => setShowModal(true)}>
+        <Button size="sm" onClick={openCreate}>
           <Plus size={14} /> Create Coupon
         </Button>
       </div>
@@ -119,7 +151,10 @@ export default function AdminCoupons() {
                   <td className="px-4 py-3 text-neutral-600">{c.type === 'percentage' ? `${c.value}%` : `₹${c.value}`}</td>
                   <td className="px-4 py-3 text-neutral-600">{c.used_count}{c.usage_limit ? `/${c.usage_limit}` : ''}</td>
                   <td className="px-4 py-3 text-neutral-600">{new Date(c.valid_until).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
+                  <td className="flex gap-2 px-4 py-3">
+                    <button onClick={() => openEdit(c)} aria-label={`Edit ${c.code}`} className="text-neutral-400 hover:text-brand-600">
+                      <Pencil size={15} />
+                    </button>
                     <button onClick={() => remove(c.id)} className="text-neutral-400 hover:text-danger-500">
                       <Trash2 size={15} />
                     </button>
@@ -133,10 +168,11 @@ export default function AdminCoupons() {
 
       <Pagination meta={meta} onPageChange={load} />
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Create Platform Coupon">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editingCoupon ? 'Edit Platform Coupon' : 'Create Platform Coupon'}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input label="Coupon Code" value={form.code} onChange={change('code')} error={err('code')} required />
           <Input label="Title" value={form.title} onChange={change('title')} error={err('title')} required />
+          <Input label="Description" value={form.description} onChange={change('description')} error={err('description')} />
           <div className="grid grid-cols-2 gap-3">
             <Select label="Type" value={form.type} onChange={change('type')}>
               <option value="percentage">Percentage</option>
@@ -156,8 +192,16 @@ export default function AdminCoupons() {
             <Input label="Valid From" type="date" value={form.valid_from} onChange={change('valid_from')} error={err('valid_from')} required />
             <Input label="Valid Until" type="date" value={form.valid_until} onChange={change('valid_until')} error={err('valid_until')} required />
           </div>
+          <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
+            />
+            Coupon is active
+          </label>
           <Button type="submit" loading={saving} className="w-full">
-            Create Coupon
+            {editingCoupon ? 'Save Changes' : 'Create Coupon'}
           </Button>
         </form>
       </Modal>

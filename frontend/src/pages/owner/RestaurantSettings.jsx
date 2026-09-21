@@ -9,12 +9,14 @@ import { Textarea } from '../../components/Textarea'
 import { Button } from '../../components/Button'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const CUISINES = ['Indian', 'Chinese', 'Pizza', 'Biryani', 'Burgers', 'Desserts', 'Italian', 'Mexican']
 
 export default function RestaurantSettings() {
   const dispatch = useDispatch()
   const restaurant = useSelector((state) => state.owner.restaurant)
 
   const [form, setForm] = useState(null)
+  const [customCuisine, setCustomCuisine] = useState('')
   const [logo, setLogo] = useState(null)
   const [coverImage, setCoverImage] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -34,6 +36,9 @@ export default function RestaurantSettings() {
         pincode: restaurant.pincode,
         phone: restaurant.phone,
         email: restaurant.email,
+        cuisine_types: restaurant.cuisine_types ?? [],
+        fssai_number: restaurant.fssai_number ?? '',
+        gst_number: restaurant.gst_number ?? '',
         min_order_amount: restaurant.min_order_amount,
         delivery_fee: restaurant.delivery_fee,
         avg_delivery_time: restaurant.avg_delivery_time,
@@ -54,11 +59,36 @@ export default function RestaurantSettings() {
     setForm((p) => ({ ...p, [field]: value }))
   }
 
+  const toggleCuisine = (cuisine) => {
+    setForm((current) => ({
+      ...current,
+      cuisine_types: current.cuisine_types.includes(cuisine)
+        ? current.cuisine_types.filter((item) => item !== cuisine)
+        : [...current.cuisine_types, cuisine],
+    }))
+  }
+
+  const addCuisine = () => {
+    const cuisine = customCuisine.trim()
+    if (!cuisine) return
+    setForm((current) => ({
+      ...current,
+      cuisine_types: current.cuisine_types.includes(cuisine) ? current.cuisine_types : [...current.cuisine_types, cuisine],
+    }))
+    setCustomCuisine('')
+  }
+
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
     const formData = new FormData()
-    Object.entries(form).forEach(([key, value]) => formData.append(key, key === 'is_open' ? (value ? '1' : '0') : value))
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === 'cuisine_types') {
+        value.forEach((cuisine) => formData.append('cuisine_types[]', cuisine))
+      } else {
+        formData.append(key, key === 'is_open' ? (value ? '1' : '0') : value)
+      }
+    })
     if (logo) formData.append('logo', logo)
     if (coverImage) formData.append('cover_image', coverImage)
     try {
@@ -133,6 +163,38 @@ export default function RestaurantSettings() {
 
         <Input label="Name" value={form.name} onChange={change('name')} required />
         <Textarea label="Description" value={form.description} onChange={change('description')} rows={3} />
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-neutral-700">Cuisine Types</p>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(new Set([...CUISINES, ...form.cuisine_types])).map((cuisine) => (
+              <button
+                type="button"
+                key={cuisine}
+                onClick={() => toggleCuisine(cuisine)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  form.cuisine_types.includes(cuisine) ? 'border-brand-500 bg-brand-50 text-brand-600' : 'border-neutral-200 text-neutral-600'
+                }`}
+              >
+                {cuisine}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <input
+              value={customCuisine}
+              onChange={(e) => setCustomCuisine(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addCuisine()
+                }
+              }}
+              placeholder="Add another cuisine"
+              className="h-9 flex-1 rounded-md border border-neutral-200 px-3 text-sm"
+            />
+            <Button type="button" size="sm" variant="secondary" onClick={addCuisine}>Add</Button>
+          </div>
+        </div>
         <Input label="Address" value={form.address} onChange={change('address')} required />
         <div className="grid grid-cols-2 gap-3">
           <Input label="City" value={form.city} onChange={change('city')} required />
@@ -147,6 +209,14 @@ export default function RestaurantSettings() {
           <Input label="Min Order (₹)" type="number" value={form.min_order_amount} onChange={change('min_order_amount')} />
           <Input label="Delivery Fee (₹)" type="number" value={form.delivery_fee} onChange={change('delivery_fee')} />
           <Input label="Delivery Time (min)" type="number" value={form.avg_delivery_time} onChange={change('avg_delivery_time')} />
+        </div>
+        <div className="rounded-md border border-warning-200 bg-warning-50 p-3">
+          <p className="text-xs font-semibold text-warning-700">Compliance details</p>
+          <p className="mt-1 text-xs text-warning-700">Changing the FSSAI or GST number submits the restaurant for reapproval.</p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Input label="FSSAI Number" value={form.fssai_number} onChange={change('fssai_number')} required />
+            <Input label="GST Number" value={form.gst_number} onChange={change('gst_number')} />
+          </div>
         </div>
 
         <Button type="submit" loading={saving} className="w-full">

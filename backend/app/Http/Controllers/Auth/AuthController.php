@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
@@ -152,5 +153,48 @@ class AuthController extends Controller
             ->delete();
 
         return $this->success(null, 'Password changed successfully.');
+    }
+
+    public function destroyAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'confirmation' => 'required|string|in:DELETE',
+        ]);
+
+        $user = $request->user();
+
+        if (! $user->isCustomer()) {
+            return $this->error('Only customer accounts can be deleted here.', [], 403);
+        }
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            return $this->error('Current password is incorrect.', ['current_password' => ['Current password is incorrect.']], 422);
+        }
+
+        DB::transaction(function () use ($user) {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            $anonymousEmail = "deleted-customer-{$user->id}-".Str::lower(Str::random(16)).'@deleted.invalid';
+
+            // Retain the user row for immutable order and payment records without personal data.
+            $user->tokens()->delete();
+            DB::table('push_subscriptions')->where('user_id', $user->id)->delete();
+            DB::table('favourites')->where('user_id', $user->id)->delete();
+            DB::table('cart_items')->whereIn('cart_id', DB::table('carts')->where('user_id', $user->id)->select('id'))->delete();
+            DB::table('carts')->where('user_id', $user->id)->delete();
+
+            $user->forceFill([
+                'name' => "Deleted customer #{$user->id}",
+                'email' => $anonymousEmail,
+                'phone' => null,
+                'profile_image' => null,
+                'password' => Hash::make(Str::random(64)),
+                'remember_token' => null,
+                'email_verified_at' => null,
+                'is_active' => false,
+            ])->save();
+        });
+
+        return $this->success(null, 'Your account has been deleted.');
     }
 }

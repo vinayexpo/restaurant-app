@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Star } from 'lucide-react'
+import { Pencil, Star, Trash2 } from 'lucide-react'
 import { ownerService } from '../../services/ownerService'
 import { Button } from '../../components/Button'
 import { Pagination } from '../../components/Pagination'
@@ -13,6 +13,7 @@ export default function OwnerReviews() {
   const [loading, setLoading] = useState(true)
   const [ratingFilter, setRatingFilter] = useState('')
   const [replyDrafts, setReplyDrafts] = useState({})
+  const [editingId, setEditingId] = useState(null)
   const [submittingId, setSubmittingId] = useState(null)
   const [filters, setFilters] = useState({ replied: '', search: '', date_from: '', date_to: '' })
 
@@ -35,10 +36,32 @@ export default function OwnerReviews() {
     setSubmittingId(id)
     try {
       await ownerService.replyReview(id, reply)
-      toast.success('Reply posted.')
+      setEditingId(null)
+      toast.success('Reply saved.')
       load()
     } catch {
       toast.error('Could not post reply.')
+    } finally {
+      setSubmittingId(null)
+    }
+  }
+
+  const editReply = (review) => {
+    setReplyDrafts((drafts) => ({ ...drafts, [review.id]: review.owner_reply }))
+    setEditingId(review.id)
+  }
+
+  const clearReply = async (id) => {
+    if (!window.confirm('Delete this reply?')) return
+    setSubmittingId(id)
+    try {
+      await ownerService.clearReviewReply(id)
+      setReplyDrafts((drafts) => ({ ...drafts, [id]: '' }))
+      setEditingId(null)
+      toast.success('Reply deleted.')
+      load()
+    } catch {
+      toast.error('Could not delete reply.')
     } finally {
       setSubmittingId(null)
     }
@@ -92,9 +115,19 @@ export default function OwnerReviews() {
               </div>
               {review.comment && <p className="mt-2 text-sm text-neutral-700">{review.comment}</p>}
 
-              {review.owner_reply ? (
+              {review.owner_reply && editingId !== review.id ? (
                 <div className="mt-3 rounded-md bg-neutral-50 p-3 text-sm">
-                  <p className="mb-0.5 text-xs font-semibold text-neutral-500">Your reply</p>
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <p className="text-xs font-semibold text-neutral-500">Your reply</p>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => editReply(review)} className="rounded p-1 text-neutral-400 hover:bg-white hover:text-brand-600" aria-label="Edit reply">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" onClick={() => clearReply(review.id)} disabled={submittingId === review.id} className="rounded p-1 text-neutral-400 hover:bg-white hover:text-danger-500 disabled:opacity-50" aria-label="Delete reply">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                   <p className="text-neutral-700">{review.owner_reply}</p>
                 </div>
               ) : (
@@ -105,8 +138,13 @@ export default function OwnerReviews() {
                     placeholder="Write a reply..."
                     className="h-9 flex-1 rounded-md border border-neutral-200 px-3 text-sm"
                   />
+                  {editingId === review.id && (
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                      Cancel
+                    </Button>
+                  )}
                   <Button size="sm" variant="secondary" loading={submittingId === review.id} onClick={() => submitReply(review.id)}>
-                    Reply
+                    {editingId === review.id ? 'Save' : 'Reply'}
                   </Button>
                 </div>
               )}

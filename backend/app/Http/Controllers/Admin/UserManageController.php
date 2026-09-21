@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserManageController extends Controller
 {
@@ -63,6 +64,22 @@ class UserManageController extends Controller
         return $this->success($user);
     }
 
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        // Keep account permissions outside this management endpoint.
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:15'],
+        ]);
+
+        $user->update($validated);
+
+        return $this->success($user->fresh(), 'User profile updated.');
+    }
+
     public function activate(int $id): JsonResponse
     {
         $user = User::findOrFail($id);
@@ -77,13 +94,5 @@ class UserManageController extends Controller
         $user->update(['is_active' => false]);
 
         return $this->success($user, 'User deactivated.');
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $user = User::findOrFail($id);
-        $user->delete();
-
-        return $this->success(null, 'User deleted.');
     }
 }

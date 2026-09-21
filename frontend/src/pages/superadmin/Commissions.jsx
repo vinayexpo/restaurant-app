@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { superadminService } from '../../services/superadminService'
 import { adminService } from '../../services/adminService'
 import { Input } from '../../components/Input'
@@ -16,6 +16,7 @@ export default function SuperadminCommissions() {
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [editingCommission, setEditingCommission] = useState(null)
   const [form, setForm] = useState({ restaurant_id: '', rate_pct: '', effective_from: '', notes: '' })
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -41,15 +42,42 @@ export default function SuperadminCommissions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant, dateFrom, dateTo])
 
-  const handleCreate = async (e) => {
+  const openCreate = () => {
+    setEditingCommission(null)
+    setForm({ restaurant_id: '', rate_pct: '', effective_from: '', notes: '' })
+    setErrors({})
+    setShowModal(true)
+  }
+
+  const openEdit = (commission) => {
+    setEditingCommission(commission)
+    setForm({
+      restaurant_id: String(commission.restaurant_id),
+      rate_pct: String(commission.rate_pct),
+      effective_from: commission.effective_from ?? '',
+      notes: commission.notes ?? '',
+    })
+    setErrors({})
+    setShowModal(true)
+  }
+
+  const handleSave = async (e) => {
     e.preventDefault()
     setErrors({})
     setSaving(true)
     try {
-      await superadminService.createCommission(form)
+      if (editingCommission) {
+        await superadminService.updateCommission(editingCommission.id, {
+          rate_pct: form.rate_pct,
+          effective_from: form.effective_from,
+          notes: form.notes,
+        })
+      } else {
+        await superadminService.createCommission(form)
+      }
       setShowModal(false)
       setForm({ restaurant_id: '', rate_pct: '', effective_from: '', notes: '' })
-      toast.success('Commission override created.')
+      toast.success(editingCommission ? 'Commission override updated.' : 'Commission override created.')
       load()
     } catch (error) {
       setErrors(error.response?.data?.errors ?? {})
@@ -75,7 +103,7 @@ export default function SuperadminCommissions() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-bold text-neutral-900">Commission Overrides</h1>
-        <Button size="sm" onClick={() => setShowModal(true)}>
+        <Button size="sm" onClick={openCreate}>
           <Plus size={14} /> Add Override
         </Button>
       </div>
@@ -104,11 +132,16 @@ export default function SuperadminCommissions() {
                 <tr key={c.id} className="border-b border-neutral-50 last:border-0">
                   <td className="px-4 py-3 font-medium text-neutral-900">{c.restaurant?.name}</td>
                   <td className="px-4 py-3 text-neutral-600">{c.rate_pct}%</td>
-                  <td className="px-4 py-3 text-neutral-600">{c.effective_from}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => remove(c.id)} className="text-neutral-400 hover:text-danger-500">
-                      <Trash2 size={15} />
-                    </button>
+                   <td className="px-4 py-3 text-neutral-600">{c.effective_from}</td>
+                   <td className="px-4 py-3">
+                     <div className="flex justify-end gap-3">
+                       <button aria-label={`Edit ${c.restaurant?.name} commission override`} onClick={() => openEdit(c)} className="text-neutral-400 hover:text-brand-500">
+                         <Pencil size={15} />
+                       </button>
+                       <button aria-label={`Remove ${c.restaurant?.name} commission override`} onClick={() => remove(c.id)} className="text-neutral-400 hover:text-danger-500">
+                         <Trash2 size={15} />
+                       </button>
+                     </div>
                   </td>
                 </tr>
               ))}
@@ -118,21 +151,25 @@ export default function SuperadminCommissions() {
       )}
       <Pagination meta={meta} onPageChange={load} />
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Commission Override">
-        <form onSubmit={handleCreate} className="space-y-3">
-          <Select label="Restaurant" value={form.restaurant_id} onChange={(e) => setForm((p) => ({ ...p, restaurant_id: e.target.value }))} error={err('restaurant_id')} required>
-            <option value="">Select restaurant</option>
-            {restaurants.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </Select>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editingCommission ? 'Edit Commission Override' : 'Add Commission Override'}>
+        <form onSubmit={handleSave} className="space-y-3">
+          {editingCommission ? (
+            <Input label="Restaurant" value={editingCommission.restaurant?.name ?? ''} disabled />
+          ) : (
+            <Select label="Restaurant" value={form.restaurant_id} onChange={(e) => setForm((p) => ({ ...p, restaurant_id: e.target.value }))} error={err('restaurant_id')} required>
+              <option value="">Select restaurant</option>
+              {restaurants.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Input label="Rate (%)" type="number" step="0.01" value={form.rate_pct} onChange={(e) => setForm((p) => ({ ...p, rate_pct: e.target.value }))} error={err('rate_pct')} required />
           <Input label="Effective From" type="date" value={form.effective_from} onChange={(e) => setForm((p) => ({ ...p, effective_from: e.target.value }))} error={err('effective_from')} required />
           <Input label="Notes (optional)" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
           <Button type="submit" loading={saving} className="w-full">
-            Save Override
+            {editingCommission ? 'Update Override' : 'Save Override'}
           </Button>
         </form>
       </Modal>

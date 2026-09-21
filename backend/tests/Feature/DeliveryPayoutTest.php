@@ -91,6 +91,53 @@ class DeliveryPayoutTest extends TestCase
         $this->assertDatabaseHas('delivery_earnings', ['id' => $earning->id, 'status' => 'paid']);
     }
 
+    public function test_partner_can_update_their_licence_number(): void
+    {
+        [$courier, $partner] = $this->deliveryPartner();
+
+        $this->actingAs($courier)
+            ->putJson('/api/delivery/profile', ['licence_number' => 'LIC-UPDATED-01'])
+            ->assertOk()
+            ->assertJsonPath('data.licence_number', 'LIC-UPDATED-01');
+
+        $this->assertDatabaseHas('delivery_partners', [
+            'id' => $partner->id,
+            'licence_number' => 'LIC-UPDATED-01',
+        ]);
+    }
+
+    public function test_unused_payout_account_is_removed(): void
+    {
+        [$courier, $partner] = $this->deliveryPartner();
+        $account = $partner->payoutAccounts()->create(['type' => 'upi', 'upi_id' => 'courier@bank']);
+
+        $this->actingAs($courier)
+            ->deleteJson('/api/delivery/payout-account')
+            ->assertOk()
+            ->assertJsonPath('message', 'Payout account removed.');
+
+        $this->assertDatabaseMissing('delivery_payout_accounts', ['id' => $account->id]);
+    }
+
+    public function test_payout_account_with_history_is_deactivated_not_deleted(): void
+    {
+        [$courier, $partner] = $this->deliveryPartner();
+        $account = $partner->payoutAccounts()->create(['type' => 'upi', 'upi_id' => 'courier@bank']);
+        DeliveryPayout::create([
+            'delivery_partner_id' => $partner->id,
+            'delivery_payout_account_id' => $account->id,
+            'amount' => 40,
+        ]);
+
+        $this->actingAs($courier)
+            ->deleteJson('/api/delivery/payout-account')
+            ->assertOk()
+            ->assertJsonPath('message', 'Payout account deactivated. Its payout history has been retained.');
+
+        $this->assertDatabaseHas('delivery_payout_accounts', ['id' => $account->id, 'is_active' => false]);
+        $this->assertDatabaseHas('delivery_payouts', ['delivery_payout_account_id' => $account->id]);
+    }
+
     private function deliveryPartner(): array
     {
         $courier = User::factory()->deliveryPartner()->create();

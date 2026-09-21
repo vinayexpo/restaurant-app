@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Plus, Search, Trash2, Users as UsersIcon } from 'lucide-react'
+import { Pencil, Plus, Search, Users as UsersIcon } from 'lucide-react'
 import { adminService } from '../../services/adminService'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
@@ -21,6 +21,10 @@ export default function AdminUsers() {
   const [createOwnerForm, setCreateOwnerForm] = useState({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
   const [createOwnerErrors, setCreateOwnerErrors] = useState({})
   const [creatingOwner, setCreatingOwner] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '' })
+  const [userErrors, setUserErrors] = useState({})
+  const [savingUser, setSavingUser] = useState(false)
 
   const load = (page = 1) => {
     setLoading(true)
@@ -41,18 +45,40 @@ export default function AdminUsers() {
 
   const toggleStatus = async (user) => {
     try {
-      if (user.is_active) await adminService.deactivateUser(user.id)
-      else await adminService.activateUser(user.id)
+      if (user.is_active) {
+        if (!window.confirm(`Deactivate ${user.name}? They will no longer be able to sign in. You can reactivate their account later.`)) return
+        await adminService.deactivateUser(user.id)
+        toast.success('User deactivated.')
+      } else {
+        await adminService.activateUser(user.id)
+        toast.success('User reactivated.')
+      }
       load(meta.page)
     } catch {
       toast.error('Could not update user status.')
     }
   }
 
-  const remove = async (id) => {
-    if (!window.confirm('Delete this user?')) return
-    await adminService.deleteUser(id)
-    load(meta.page)
+  const openEditUser = (user) => {
+    setEditingUser(user)
+    setUserForm({ name: user.name, email: user.email, phone: user.phone ?? '' })
+    setUserErrors({})
+  }
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault()
+    setUserErrors({})
+    setSavingUser(true)
+    try {
+      await adminService.updateUser(editingUser.id, userForm)
+      setEditingUser(null)
+      toast.success('User profile updated.')
+      load(meta.page)
+    } catch (error) {
+      setUserErrors(error.response?.data?.errors ?? {})
+    } finally {
+      setSavingUser(false)
+    }
   }
 
   const handleCreateOwner = async (e) => {
@@ -75,6 +101,11 @@ export default function AdminUsers() {
 
   const ownerErr = (field) => {
     const value = createOwnerErrors[field]
+    return Array.isArray(value) ? value[0] : value
+  }
+
+  const userErr = (field) => {
+    const value = userErrors[field]
     return Array.isArray(value) ? value[0] : value
   }
 
@@ -150,8 +181,8 @@ export default function AdminUsers() {
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => remove(u.id)} className="text-neutral-400 hover:text-danger-500">
-                      <Trash2 size={15} />
+                    <button onClick={() => openEditUser(u)} aria-label={`Edit ${u.name}`} className="text-neutral-400 hover:text-brand-600">
+                      <Pencil size={15} />
                     </button>
                   </td>
                 </tr>
@@ -188,6 +219,18 @@ export default function AdminUsers() {
 
           <Button type="submit" loading={creatingOwner} className="w-full">
             Create Owner
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal open={!!editingUser} onClose={() => setEditingUser(null)} title="Edit User Profile">
+        <form onSubmit={handleUpdateUser} className="space-y-3">
+          <Input label="Full Name" value={userForm.name} onChange={(e) => setUserForm((prev) => ({ ...prev, name: e.target.value }))} error={userErr('name')} required />
+          <Input label="Email" type="email" value={userForm.email} onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))} error={userErr('email')} required />
+          <Input label="Phone" value={userForm.phone} onChange={(e) => setUserForm((prev) => ({ ...prev, phone: e.target.value }))} error={userErr('phone')} />
+          <p className="text-xs text-neutral-500">Role and account permissions cannot be changed here.</p>
+          <Button type="submit" loading={savingUser} className="w-full">
+            Save Profile
           </Button>
         </form>
       </Modal>

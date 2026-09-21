@@ -78,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     Route::put('/auth/password', [AuthController::class, 'changePassword']);
+    Route::delete('/auth/account', [AuthController::class, 'destroyAccount'])->middleware(['role:customer', 'throttle:auth']);
 
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -116,6 +117,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/favourites/{restaurantId}', [FavouriteController::class, 'destroy']);
 
         Route::post('/reviews', [ReviewController::class, 'store']);
+        Route::put('/reviews/{review}', [ReviewController::class, 'update']);
+        Route::delete('/reviews/{review}', [ReviewController::class, 'destroy']);
 
         Route::get('/loyalty', [LoyaltyController::class, 'summary']);
         Route::get('/loyalty/transactions', [LoyaltyController::class, 'transactions']);
@@ -148,6 +151,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::get('/reviews', [ReviewManageController::class, 'index']);
             Route::patch('/reviews/{id}/reply', [ReviewManageController::class, 'reply']);
+            Route::delete('/reviews/{id}/reply', [ReviewManageController::class, 'clearReply']);
 
             Route::apiResource('coupons', OwnerCouponController::class);
 
@@ -173,6 +177,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/earnings/summary', [DeliveryOrderController::class, 'earningsSummary']);
         Route::get('/payout-account', [DeliveryPayoutController::class, 'account']);
         Route::post('/payout-account', [DeliveryPayoutController::class, 'storeAccount']);
+        Route::delete('/payout-account', [DeliveryPayoutController::class, 'destroyAccount']);
         Route::get('/payouts', [DeliveryPayoutController::class, 'index']);
         Route::post('/payouts', [DeliveryPayoutController::class, 'store']);
     });
@@ -184,9 +189,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserManageController::class, 'store']);
         Route::get('/users', [UserManageController::class, 'index']);
         Route::get('/users/{id}', [UserManageController::class, 'show']);
+        Route::patch('/users/{id}', [UserManageController::class, 'update']);
         Route::patch('/users/{id}/activate', [UserManageController::class, 'activate']);
         Route::patch('/users/{id}/deactivate', [UserManageController::class, 'deactivate']);
-        Route::delete('/users/{id}', [UserManageController::class, 'destroy']);
 
         Route::get('/restaurants', [RestaurantApprovalController::class, 'index']);
         Route::get('/restaurants/{id}', [RestaurantApprovalController::class, 'show']);

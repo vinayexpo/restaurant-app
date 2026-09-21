@@ -36,6 +36,7 @@ export const ownerService = {
 
   reviews: (params) => api.get('/owner/reviews', { params }),
   replyReview: (id, owner_reply) => api.patch(`/owner/reviews/${id}/reply`, { owner_reply }),
+  clearReviewReply: (id) => api.delete(`/owner/reviews/${id}/reply`),
 
   coupons: (params) => api.get('/owner/coupons', { params }),
   createCoupon: (payload) => api.post('/owner/coupons', payload),
