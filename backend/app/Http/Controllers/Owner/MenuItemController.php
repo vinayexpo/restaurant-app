@@ -32,8 +32,8 @@ class MenuItemController extends Controller
             ->with(['category', 'variants'])
             ->when($filters['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', "%{$search}%"))
             ->when($filters['category_id'] ?? null, fn ($query, $categoryId) => $query->where('category_id', $categoryId))
-            ->when(array_key_exists('is_available', $filters), fn ($query) => $query->where('is_available', $filters['is_available']))
-            ->when(array_key_exists('is_veg', $filters), fn ($query) => $query->where('is_veg', $filters['is_veg']))
+            ->when(isset($filters['is_available']), fn ($query) => $query->where('is_available', $filters['is_available']))
+            ->when(isset($filters['is_veg']), fn ($query) => $query->where('is_veg', $filters['is_veg']))
             ->latest()->paginate($perPage);
 
         return $this->paginated($items);
